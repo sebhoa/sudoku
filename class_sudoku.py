@@ -5,6 +5,8 @@ import random, time, sys
 SIZE = 9
 SMALL = 3
 
+# Pour dessiner les bordures de la grille
+#
 TLC = '\u250C'	# Top Left Corner
 TIB = '\u252C'	# Top Inner Border
 TRC = '\u2510'	# Top Right Corner
@@ -252,8 +254,6 @@ class Sudoku(object):
 			for col_id in range(SIZE):
 				if self.vide(ligne_id, col_id):
 					pareil_que_j = x_pareil(self.cases_vides_par_lignes[ligne_id], col_id)
-					#print("Sur ligne {} les pareils que {} : {}".format(ligne_id,col_id,pareil_que_j))
-					#print("trouve avant",trouve)
 					if pareil_que_j != [] and len(pareil_que_j)+1 == len(self.cases_vides[(ligne_id, col_id)]):
 						pareil_que_j.append(col_id)
 						interdites = self.cases_vides[(ligne_id, col_id)]
@@ -267,7 +267,6 @@ class Sudoku(object):
 						if nb > 0:
 							trouve = True
 							self.profil['candidats_identiques'] += 1									
-					#print("trouve apres",trouve)
 		# trouver des valeurs par colonnes
 		for col_id in range(SIZE):
 			valeurs_par_colonnes = [self.cases_vides_par_lignes[i][col_id] for i in range(SIZE)]
@@ -278,11 +277,6 @@ class Sudoku(object):
 						pareil_que_j.append(ligne_id)
 						interdites = self.cases_vides[(ligne_id, col_id)]
 						indices = [k for k in range(SIZE) if k not in pareil_que_j and self.vide(k, col_id)]
-						#print(self)
-						#print("Colonne {} : ".format(col_id))
-						#print("\tIndices de colonnes Valeurs pareil : {} -- valeurs = {}".format(pareil_que_j, interdites))
-						#print("\tIndices à épurer : {}".format(indices))
-						#h = input()
 						nb = 0
 						for k in indices:
 							for e in interdites:
@@ -305,21 +299,15 @@ class Sudoku(object):
 				changement = True
 			self.set_valeurs_par_lignes()
 			nb_par_ligne = self.singleton_cache_par_ligne()
-			#print("Nombres de singleton cachés par ligne : {}".format(nb_par_ligne))
 			if nb_par_ligne > 0:
-				#print(self)
 				changement = True
 			self.set_valeurs_par_colonnes()
 			nb_par_colonne = self.singleton_cache_par_colonne()
-			#print("Nombres de singleton cachés par colonne : {}".format(nb_par_colonne))
 			if nb_par_colonne > 0:
-				#print(self)
 				changement = True
 			self.set_valeurs_par_carres()
 			nb_par_carre = self.singleton_cache_par_carre()
-			#print("Nombres de singleton cachés par carré : {}".format(nb_par_carre))
 			if nb_par_carre > 0:
-				#print(self)
 				changement = True
 		t2 = time.time()
 		self.temps += t2-t1			
@@ -327,18 +315,11 @@ class Sudoku(object):
 	def simplifier_plus_interdits(self):
 		changement = True
 		while changement:
-		#for i in range(1):
 			changement = False
 			self.simplifier()
 			self.update_cases_vides()
 			changement = self.trouver_valeurs_interdites()
 			self.update_cases_vides()
-			#print(self)
-			#h = input()
-			#print(self.valeurs_interdites)
-			#for i in range(9):
-			#	print(self.cases_vides_par_lignes[i])
-			#print(self.profil['candidats_identiques'])
 			
 	
 	def backtracking(self, optionTri=True):
@@ -375,23 +356,22 @@ class Sudoku(object):
 		self.update_cases_vides()
 		if optionSingleton:
 			self.simplifier_plus_interdits()
-			#self.simplifier()
 		self.solve_by_backtracking(optionTri)
 	
 	def analyse(self):
-		print("\n")
-		print("Statistiques pour {}".format(self.name))
+		print('\n')
+		print(f'Statistiques pour {self.name}')
 		print('----')
 		for technique in ['singleton_nu', 'singleton_cache_par_ligne', 'singleton_cache_par_colonne',  
 		'singleton_cache_par_carre', 'candidats_identiques']:
-			print("{:30} : {:2} résolutions".format(technique, self.profil[technique]))
-		print("{:30} : {:2} résolutions".format("TOTAL",self.profil['total']))
-		print("----")
-		print("Par backtracking : {} cases.".format(self.profil['backtracking']))
+			print(f'{technique:30} : {self.profil[technique]:2} résolutions')
+		print(f'{"TOTAL":30} : {self.profil["total"]:2} résolutions')
+		print('----')
+		print(f'Par backtracking : {self.profil["backtracking"]} cases.')
 		if self.temps > -1:
-			print("Au final, grille résolue en {:5.3f}s".format(self.temps))
+			print(f'Au final, grille résolue en {self.temps:5.3f}s')
 		else:
-			print("Au final, grille non résolue.")
+			print('Au final, grille non résolue.')
 		print('----')
 		print(self)
 	
@@ -408,18 +388,7 @@ def main():
 	print(grille)
 	grille.update_cases_vides()
 	grille.simplifier_plus_interdits()
-	#grille.update_cases_vides()
-	#print(grille)
-	#for i in range(grille.Taille):
-	#	print(grille.cases_vides_par_lignes[i])
-	#grille.trouver_valeurs_interdites()
-	#print(grille.valeurs_interdites)
-	#grille.update_cases_vides()
-	#for i in range(grille.Taille):
-	#	print(grille.cases_vides_par_lignes[i])
-	#grille.simplifier()
 	print(grille)
-	#grille.update_cases_vides()
 	
 
 		

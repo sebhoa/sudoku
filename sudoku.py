@@ -46,34 +46,6 @@ GrilleParDefaut = "rr_07_10_4_expert"
 RepParDefaut = "AutresGrilles"
 Home = "."
 
-def afficher_lignes_candidats(tab):
-	for i in range(9):
-		print("Ligne {} : ".format(i+1),end="")
-		for j in range(9):
-			print(tab[i][j],end=" ")
-		print()
-
-
-def afficher_valeurs_par_ligne(tab):
-	for i in range(9):
-		print("Ligne {} : ".format(i+1))
-		for number in tab[i]:
-			print("\t{} -> {}".format(number, tab[i][number]))
-
-def afficher_valeurs_par_colonne(tab):
-	for i in range(9):
-		print("Colonne {} : ".format(i+1))
-		for number in tab[i]:
-			print("\t{} -> {}".format(number, tab[i][number]))
-
-def afficher_valeurs_par_carre(tab):
-	for i in range(3):
-		for j in range(3):
-			print("Carré {},{} : ".format(i, j))
-			for number in tab[i][j]:
-				print("\t{} -> {}".format(number, tab[i][j][number]))
-
-
 
 # -- Settings ----
 # ----------------
@@ -85,7 +57,7 @@ def settings(argv):
 		opts, args = getopt.getopt(argv,Options)
 	except getopt.error:
 		msg = sys.exc_info()[1]
-		print("Error: {}".format(msg))
+		print(f'Error: {msg}')
 		sys.exit(HelpMessage)
 	
 	# option processing
@@ -127,8 +99,8 @@ def settings(argv):
 
 def afficheResume(tps):
 	if len(tps) > 1:
-		print("-------------------------")
-		print("Temps moyen : {:2.2f}s".format(sum(tps)/len(tps)))
+		print('-------------------------')
+		print(f'Temps moyen : {sum(tps)/len(tps):2.2f}s')
 
 # Traiter 1 ou plusieurs grilles ?
 def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
@@ -138,22 +110,22 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 		taille = len(l)
 		grille = class_sudoku.Sudoku(fic,os.path.join(Home,rep,fic))
 		toutes_les_grilles[fic] = grille
-		print("{} : {}".format("\nGrille", fic))
+		print(f'\nGrille : {fic}')
 		if taille == 1:
 			print(grille)
 		grille.solve(optTri, optSingleton)
-		if optChoix != "all":
+		if optChoix != 'all':
 			if grille.temps != -1:				# si tps != -1 alors c'est que la grille a été résolue et tps vaut le temps mis pour résoudre
 				if taille == 1:					# taille == 1 signifie qu'on résoud une seule grille et non tout un répertoire
-					print("\nSolution :")
+					print('\nSolution :')
 					print(grille)		
-				print("Résolue en : {:2.2f}s\n".format(grille.temps))
+				print(f'Résolue en : {grille.temps:2.2f}s\n')
 				tps.append(grille.temps)		# on mémorise le temps dans une liste pour calculer la moyenne ensuite 
 			else:
-				print("Grille non résolue !")
+				print('Grille non résolue !')
 		else:
-			print('{} solution(s)'.format(len(tps)))
-			afficher(tps[0])
+			print(f'{len(tps)} solution(s)')
+			print(tps)
 	afficheResume(tps)					# calcule et affiche le temps moyen
 	return toutes_les_grilles
 
