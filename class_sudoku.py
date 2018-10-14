@@ -15,6 +15,7 @@ BLC = '\u2514'	# Bottom Left Corner
 BIB = '\u2534'	# Bottom Inner Border
 BRC = '\u2518'	# Bottom Right Corner
 SBO = '\u2500'	# Simple BOrder
+VSEP = '|' # Vertical Line
 
 TOP = f'{TLC}{SBO * 7}{TIB}{SBO * 7}{TIB}{SBO * 7}{TRC}'
 MIDDLE = f'{MLB}{SBO * 7}{MIB}{SBO * 7}{MIB}{SBO * 7}{MRB}'
@@ -23,37 +24,62 @@ BOTTOM = f'{BLC}{SBO * 7}{BIB}{SBO * 7}{BIB}{SBO * 7}{BRC}'
 
 class Sudoku(object):
 	"""Classe Sudoku"""
-	Taille = 9
 	
 	def __init__(self, name="Unamed", fichier=""):
+		# remplissage de la grille : à partir d'un fichier texte
+		# s'il existe 
 		self.grille = []
 		if fichier != "":
 			with open(fichier, 'r') as fp:
 				lignes = fp.readlines()
 			for i in range(SIZE):
 				line = [int(e) for e in lignes[i].split()]
-				self.grille.append(line)			
+				self.grille.append(line)
+		# en demandant à l'utilisateur sinon			
 		else:
 			print("Vous n'avez pas fourni de fichier texte.")
 			print("Veuillez donner les lignes de chiffres :")
 			for i in range(SIZE):
 				line = [int(e) for e in input("Ligne {} : ".format(i+1)).split()]
 				self.grille.append(line)
-		self.temps = 0
-		self.name = name
-		self.difficulty = ""
-		self.cases_vides = {}
-		self.valeurs_interdites = {}
-		for i in range(SIZE):
-			for j in range(SIZE):
-				self.valeurs_interdites[(i, j)] = []
+		self.temps = 0					# temps de résolution
+		self.name = name 				# nom du fichier
+		self.difficulty = "" 			# difficulté mais je ne sais pas si ça sert ;-)
+		self.cases_vides = {} 			# le dictionnaire des cases vides et les valeurs possibles
+		# valeurs interdites pour les cases vides :
+		self.valeurs_interdites = {(i, j):[] for i in range(SIZE) for j in range(SIZE)}
 		self.cases_vides_par_lignes = []
 		self.valeurs_par_lignes = []
 		self.valeurs_par_colonnes = []
 		self.valeurs_par_carres = []
-		self.profil = {'total':0, 'singleton_nu':0, 'singleton_cache_par_ligne':0, 'singleton_cache_par_colonne':0,  
-		'singleton_cache_par_carre':0, 'backtracking':0, 'candidats_identiques':0}
+		# Pour afficher combien de fois telle ou telle méthode a été utilisée :
+		self.profil = {'total':0, 'singleton_nu':0, 'singleton_cache_par_ligne':0, 
+						'singleton_cache_par_colonne':0,  
+						'singleton_cache_par_carre':0, 
+						'backtracking':0, 
+						'candidats_identiques':0} 
 	
+
+	def __repr__(self):
+		""" Affichage d'un beau sudoku avec bordure sympa 
+			TODO : trouver une barre verticale plus haute que | """
+		chaine = f'{TOP}\n'
+		for i in range(SIZE):
+			if i > 0 and i % SMALL == 0:
+				chaine += f'{MIDDLE}\n'
+			for j in range(SIZE):
+				if j % SMALL == 0:
+					chaine += f'{VSEP} '
+				if not self.vide(i, j):
+					chaine += f'{str(self.g(i, j))} '
+				else:
+					chaine += ". "
+			chaine += f'{VSEP}\n'
+		chaine += f'{BOTTOM}\n'
+		return chaine
+
+
+
 	def g(self, i, j):
 		return self.grille[i][j]
 	
@@ -66,34 +92,18 @@ class Sudoku(object):
 	def nb_cases_vides(self):
 		return len(self.cases_vides.keys())
 	
-	def __repr__(self):
-		chaine = f'{TOP}\n'
-		for i in range(SIZE):
-			if i > 0 and i % SMALL == 0:
-				chaine += f'{MIDDLE}\n'
-			for j in range(self.Taille):
-				if j%(self.Taille/3) == 0:
-					chaine += "| "
-				if not self.vide(i, j):
-					chaine += f'{str(self.g(i, j))} '
-				else:
-					chaine += ". "
-			chaine += "|\n"
-		chaine += f'{BOTTOM}\n'
-		return chaine
 	
 	def set_cases_vides_par_lignes(self):
-		res = []
-		for i in range(SIZE):
-			res.append([])
-			for j in range(SIZE):
-				res[i].append([])
+		res = [[[] for _ in range(SIZE)] for _ in range(SIZE)]
 		for x, y in self.cases_vides:
 			res[x][y] = self.cases_vides[(x,y)]
-		self.cases_vides_par_lignes = res
+		self.cases_vides_par_lignes = res 
+
 
 	def update_cases_vides(self):
-		
+		""" Une des méthodes clé : calcule pour chaque case vide les valeurs possibles 
+			Cette info est stockée de 2 façon différentes : par un dict et par une liste
+			de lignes """
 		def calculValMemeLigne(x,y):
 			return [self.g(x,b) for b in range(SIZE) if b != y and not self.vide(x,b)]
 		
@@ -104,7 +114,7 @@ class Sudoku(object):
 			res = []
 			for a in range(SIZE):
 				for b in range(SIZE):
-					if a//3 == x//3 and b//3 == y//3 and a != x and b != y and not self.vide(a,b):
+					if a//SMALL == x//SMALL and b//SMALL == y//SMALL and a != x and b != y and not self.vide(a,b):
 						res.append(self.g(a,b))
 			return res
 			
@@ -148,15 +158,14 @@ class Sudoku(object):
 	
 	def set_valeurs_par_carres(self):
 		res = []
-		modulo = SIZE // 3
-		for i in range(modulo):
+		for i in range(SMALL):
 			res.append([])
-			for j in range(modulo):
+			for j in range(SMALL):
 				res[i].append({})
 		for i in range(SIZE):
-			i_carre = i // modulo
+			i_carre = i // SMALL
 			for j in range(SIZE):
-				j_carre = j // modulo
+				j_carre = j // SMALL
 				for number in range(1, SIZE+1):
 					if number in self.cases_vides_par_lignes[i][j]:
 						res[i_carre][j_carre][number] = res[i_carre][j_carre].get(number, []) + [(i,j)]
