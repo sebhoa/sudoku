@@ -370,10 +370,6 @@ class Sudoku(object):
 		self.update_cases_vides()
 		if self.nb_cases_vides() == 0:
 			return True
-		elif time.time() - self.temps > 5:
-			print('stop')
-			self.stop = True
-			return False
 		else:
 			# self.simplifier_plus_interdits()
 			liste = list(self.cases_vides.items())
