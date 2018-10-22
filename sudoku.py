@@ -104,29 +104,36 @@ def afficheResume(tps):
 
 # Traiter 1 ou plusieurs grilles ?
 def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
+	ferr = open('big.log','w')
+	fstats = open('stats_all','a')
 	tps = []
 	toutes_les_grilles = {}
-	for fic in l:
-		taille = len(l)
+	taille = len(l)
+	for id_fic, fic in enumerate(l):
+		print(f'{id_fic:05}', end='\b'*5, flush=True)
 		grille = class_sudoku.Sudoku(fic,os.path.join(Home,rep,fic))
 		toutes_les_grilles[fic] = grille
-		print(f'\nGrille : {fic}')
+		# print(f'\nGrille : {fic}')
 		if taille == 1:
+			print()
 			print(grille)
 		grille.solve(optTri, optSingleton)
 		if optChoix != 'all':
-			if grille.temps != -1:				# si tps != -1 alors c'est que la grille a été résolue et tps vaut le temps mis pour résoudre
+			if grille.solution:				# si tps != -1 alors c'est que la grille a été résolue et tps vaut le temps mis pour résoudre
 				if taille == 1:					# taille == 1 signifie qu'on résoud une seule grille et non tout un répertoire
 					print('\nSolution :')
 					print(grille)		
-				print(f'Résolue en : {grille.temps:2.2f}s\n')
+				# print(f'Résolue en : {grille.temps:2.2f}s')
+				fstats.write(f'{fic[4:]} {grille.temps:2.2f}\n')
 				tps.append(grille.temps)		# on mémorise le temps dans une liste pour calculer la moyenne ensuite 
 			else:
-				print('Grille non résolue !')
+				ferr.write(f'{grille.name}\n')
 		else:
 			print(f'{len(tps)} solution(s)')
 			print(tps)
 	afficheResume(tps)					# calcule et affiche le temps moyen
+	ferr.close()
+	fstats.close()
 	return toutes_les_grilles
 
 # -- Main --------
@@ -139,8 +146,8 @@ def main():
 	if '.DS_Store' in fic:
 		fic.remove('.DS_Store')
 	all_grilles = solveOneOrMore(fic, rep, optTri, optChoix, optSingleton)
-	for g in all_grilles:
-		all_grilles[g].analyse()
+	# for g in all_grilles:
+	# 	all_grilles[g].analyse()
 
 
 
