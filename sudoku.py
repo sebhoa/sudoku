@@ -100,7 +100,7 @@ def settings(argv):
 def afficheResume(tps):
 	if len(tps) > 1:
 		print('-------------------------')
-		print(f'Temps moyen : {sum(tps)/len(tps):2.2f}s')
+		print(f'Temps moyen : {sum(tps)/len(tps):.3f}s')
 
 # Traiter 1 ou plusieurs grilles ?
 def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):

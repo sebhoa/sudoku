@@ -32,12 +32,8 @@ BOTTOM = f'{BLC}{SBO * 7}{BIB}{SBO * 7}{BIB}{SBO * 7}{BRC}'
 FLAG = False
 
 
-# -- Deux petites fonctions utilitaires --
+# -- Une petite fonction utilitaire --
 # -- que je ne sais pas trop où mettre  --
-
-def by_number_of_integers(candidat):
-    """ Pour le tri des cases vides suivant le nombre de candidats """
-    return len(candidat[1])
 
 def x_pareil(liste, j):
     return [i for i in range(j+1,len(liste)) if liste[i] == liste[j]]
@@ -225,6 +221,9 @@ class Sudoku(object):
         """ Retourne une référence vers la Case de coordonnée (i, j) """
         return self.grille[(i,j)]
 
+    def set_by_coord(self, i, j, v):
+        self.case(i,j).set_val(v)
+
     def set_case(self, case, v):
         """ Demande à la Case case de mettre à jour sa valeur avec v """
         case.set_val(v)
@@ -244,6 +243,31 @@ class Sudoku(object):
         self.cases_vides.sort(key=Case.by_number_of_candidats)
     
     
+    # -- Calcul de positions possibles pour les entiers candidats --
+
+    def set_valeurs(self):
+        """
+        Pour chaque ligne calcule pour chaque entier n de 1 à 9
+        le set des positions (colonnes) où on peut placer n
+        Et pour chaque colonne j et pour chaque entier number de 1 à 9
+        le set des positions (lignes) où on peut placer number
+        """ 
+        self.valeurs_par_lignes = {(i, n):set() for i in range(SIZE) for n in NUMBERS}
+        self.valeurs_par_colonnes = {(j, n):set() for j in range(SIZE) for n in NUMBERS}
+        self.valeurs_par_carres = {(ic, jc, n):set() for ic in range(MODULO) for jc in range(MODULO) for n in NUMBERS}
+        for case in self.cases_vides:
+            i_carre = case.id_lig // MODULO
+            j_carre = case.id_col // MODULO
+            for n in case.candidats:
+                self.valeurs_par_lignes[(case.id_lig, n)].add(case.id_col)
+                self.valeurs_par_colonnes[(case.id_col, n)].add(case.id_lig)
+                self.valeurs_par_carres[(i_carre, j_carre, n)].add((case.id_lig,case.id_col))
+
+
+
+
+
+
     # -- Recherche de singletons --
 
     def singleton_nu(self):
@@ -255,7 +279,7 @@ class Sudoku(object):
         self.tri_cases_vides()
         while self.nb_cases_vides() and self.cases_vides[0].singleton():
             case_vide = self.cases_vides.pop(0)
-            val = case_vide.candidats.pop(0)
+            val = case_vide.candidats.pop()
             self.set_case(case_vide, val)
             nb += 1
             self.profil['singleton_nu'] += 1
@@ -263,61 +287,132 @@ class Sudoku(object):
             self.tri_cases_vides()
         return nb
 
-    # def singleton_cache_par_ligne(self):
-    #     for id_ligne, number in self.valeurs_par_lignes:
-    #         if len(self.valeurs_par_lignes[(id_ligne, number)]) == 1:
-    #             self.profil['singleton_cache_par_ligne'] += 1
-    #             self.profil['total'] += 1
-    #             id_col = self.valeurs_par_lignes[(id_ligne, number)].pop()
-    #             self.set_g(id_ligne, id_col, number)
-    #             return True
-    #     return False
+    def singleton_cache_par_ligne(self):
+        for id_ligne, number in self.valeurs_par_lignes:
+            if len(self.valeurs_par_lignes[(id_ligne, number)]) == 1:
+                self.profil['singleton_cache_par_ligne'] += 1
+                self.profil['total'] += 1
+                id_col = self.valeurs_par_lignes[(id_ligne, number)].pop()
+                self.cases_vides.remove(self.case(id_ligne, id_col))
+                # input(f'ligne {id_ligne} on met {number} en {id_col}')
+                self.set_by_coord(id_ligne, id_col, number)
+                return True
+        return False
 
-    # def singleton_cache_par_colonne(self):
-    #     for id_col, number in self.valeurs_par_colonnes:
-    #         if len(self.valeurs_par_colonnes[(id_col, number)]) == 1:
-    #             self.profil['singleton_cache_par_colonne'] += 1
-    #             self.profil['total'] += 1
-    #             id_ligne = self.valeurs_par_colonnes[(id_col, number)].pop()
-    #             self.set_g(id_ligne, id_col, number)
-    #             return True
-    #     return False
+    def singleton_cache_par_colonne(self):
+        for id_col, number in self.valeurs_par_colonnes:
+            if len(self.valeurs_par_colonnes[(id_col, number)]) == 1:
+                self.profil['singleton_cache_par_colonne'] += 1
+                self.profil['total'] += 1
+                id_ligne = self.valeurs_par_colonnes[(id_col, number)].pop()
+                self.cases_vides.remove(self.case(id_ligne, id_col))
+                self.set_by_coord(id_ligne, id_col, number)
+                return True
+        return False
 
-    # def singleton_cache_par_carre(self):
-    #     for id_ligne, id_col, number in self.valeurs_par_carres:
-    #         if len(self.valeurs_par_carres[(id_ligne, id_col, number)]) == 1:
-    #             self.profil['singleton_cache_par_carre'] += 1
-    #             self.profil['total'] += 1
-    #             x, y = self.valeurs_par_carres[(id_ligne, id_col, number)].pop()
-    #             self.set_g(x, y, number)
-    #             return True
-    #     return False
+    def singleton_cache_par_carre(self):
+        for id_ligne, id_col, number in self.valeurs_par_carres:
+            if len(self.valeurs_par_carres[(id_ligne, id_col, number)]) == 1:
+                self.profil['singleton_cache_par_carre'] += 1
+                self.profil['total'] += 1
+                x, y = self.valeurs_par_carres[(id_ligne, id_col, number)].pop()
+                self.cases_vides.remove(self.case(x, y))
+                self.set_by_coord(x, y, number)
+                return True
+        return False
  
     # -- Techniques pour simplifier, réduire --
 
     def simplifier(self):
+        self.set_valeurs()
         changement = True
         while changement:
             changement = False
             if self.singleton_nu():
                 changement = True
+                self.tri_cases_vides()
+                self.set_valeurs()
+            if self.singleton_cache_par_ligne():
+                changement = True
+                self.tri_cases_vides()
+                self.set_valeurs()
+            if self.singleton_cache_par_colonne():
+                changement = True
+                self.tri_cases_vides()
+                self.set_valeurs()
+            if self.singleton_cache_par_carre():
+                changement = True
+                self.tri_cases_vides()
+                self.set_valeurs()
+
+    # -- Recherche de valeurs interdites pour les cases vides --
+
+    def interdites_par_ligne(self):
+        """
+        Par ligne calcule pour une case donnée si d'autres cases ont exactement
+        les mêmes candidats. Si c'est le cas et que le nombre de cases qui partagent
+        ces candidats est égal au nombre de cases alors ces candidats doivent être
+        interdits dans toutes les autres cases
+        """
+        trouve = False
+        for case in self.cases_vides:
+            ligne_id, col_id = case.id_lig, case.id_col
+            cases_vides_par_lignes = [self.case(ligne_id, x) for x in range(SIZE) if self.vide(ligne_id, x)]
+            pareil_que_j = x_pareil(cases_vides_par_lignes, col_id)
+            if pareil_que_j != [] and len(pareil_que_j)+1 == len(case.candidats):
+                pareil_que_j.append(col_id)
+                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.vide(ligne_id, k)]
+                nb = 0
+                for k in indices:
+                    case_k = self.case(ligne_id, k)
+                    interdites = case.candidats & case_k.candidats
+                    nb = len(interdites)
+                    case_k.candidats = case_k.candidats - case.candidats
+                if nb > 0:
+                    trouve = True
+                    self.profil['candidats_identiques'] += 1                                    
+        return trouve
+
+    def interdites_par_colonne(self):
+        """
+        Idem que la fonction interdites_par_ligne mais pour les colonnes
+        """
+        trouve = False
+        for case in self.cases_vides:
+            ligne_id, col_id = case.id_lig, case.id_col
+            cases_vides_par_colonnes = [self.case(x, col_id) for x in range(SIZE) if self.vide(x, col_id)]
+            pareil_que_j = x_pareil(cases_vides_par_colonnes, ligne_id)
+            if pareil_que_j != [] and len(pareil_que_j)+1 == len(case.candidats):
+                pareil_que_j.append(ligne_id)
+                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.vide(k, col_id)]
+                nb = 0
+                for k in indices:
+                    case_k = self.case(k, col_id)
+                    interdites = case.candidats & case_k.candidats
+                    nb = len(interdits)
+                    case_k.candidats = case_k.candidats - case.candidats
+                if nb > 0:
+                    trouve = True
+                    self.profil['candidats_identiques'] += 1
+        return trouve                                   
 
 
-            #     self.update_cases_vides()
-            #     self.set_valeurs()
-            # if self.singleton_cache_par_ligne():
-            #     changement = True
-            #     self.update_cases_vides()
-            #     self.set_valeurs()
-            # if self.singleton_cache_par_colonne():
-            #     changement = True
-            #     self.update_cases_vides()
-            #     self.set_valeurs()
-            # if self.singleton_cache_par_carre():
-            #     changement = True
-            #     self.update_cases_vides()
-            #     self.set_valeurs()
+    def trouver_valeurs_interdites(self):   
+        trouve_par_ligne = self.interdites_par_ligne()
+        trouve_par_colonne = self.interdites_par_colonne()
+        return trouve_par_ligne or trouve_par_colonne
 
+        
+    def simplifier_plus_interdits(self):
+        changement = True
+        self.set_valeurs()
+        while changement:
+            changement = False
+            self.simplifier()
+            self.set_valeurs()
+            changement = self.trouver_valeurs_interdites()
+            if changement:
+                self.set_valeurs()
 
     # -- Résolution brute : le backtrack --
     
@@ -349,7 +444,8 @@ class Sudoku(object):
         self.temps = time.time()
         # self.update_cases_vides()
         if optionSingleton:
-            self.simplifier()
+            self.simplifier_plus_interdits()
+            # self.simplifier()
         self.solution = self.solve_by_backtracking(optionTri)
         self.temps = time.time() - self.temps
     
