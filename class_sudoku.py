@@ -113,6 +113,9 @@ class Case():
         #self.candidats.add(self.val)
         self.val = VIDE
 
+    def singleton(self):
+        """ Retourne True ssi la case n'a qu'un seul candidat """
+        return len(self.candidats) == 1
 
 
 class Sudoku(object):
@@ -241,6 +244,80 @@ class Sudoku(object):
         self.cases_vides.sort(key=Case.by_number_of_candidats)
     
     
+    # -- Recherche de singletons --
+
+    def singleton_nu(self):
+        """
+        Si pour une case vide (x,y) il n'y a qu'une
+        seule possibilité alors on joue cette valeur
+        """
+        nb = 0
+        self.tri_cases_vides()
+        while self.nb_cases_vides() and self.cases_vides[0].singleton():
+            case_vide = self.cases_vides.pop(0)
+            val = case_vide.candidats.pop(0)
+            self.set_case(case_vide, val)
+            nb += 1
+            self.profil['singleton_nu'] += 1
+            self.profil['total'] += 1
+            self.tri_cases_vides()
+        return nb
+
+    # def singleton_cache_par_ligne(self):
+    #     for id_ligne, number in self.valeurs_par_lignes:
+    #         if len(self.valeurs_par_lignes[(id_ligne, number)]) == 1:
+    #             self.profil['singleton_cache_par_ligne'] += 1
+    #             self.profil['total'] += 1
+    #             id_col = self.valeurs_par_lignes[(id_ligne, number)].pop()
+    #             self.set_g(id_ligne, id_col, number)
+    #             return True
+    #     return False
+
+    # def singleton_cache_par_colonne(self):
+    #     for id_col, number in self.valeurs_par_colonnes:
+    #         if len(self.valeurs_par_colonnes[(id_col, number)]) == 1:
+    #             self.profil['singleton_cache_par_colonne'] += 1
+    #             self.profil['total'] += 1
+    #             id_ligne = self.valeurs_par_colonnes[(id_col, number)].pop()
+    #             self.set_g(id_ligne, id_col, number)
+    #             return True
+    #     return False
+
+    # def singleton_cache_par_carre(self):
+    #     for id_ligne, id_col, number in self.valeurs_par_carres:
+    #         if len(self.valeurs_par_carres[(id_ligne, id_col, number)]) == 1:
+    #             self.profil['singleton_cache_par_carre'] += 1
+    #             self.profil['total'] += 1
+    #             x, y = self.valeurs_par_carres[(id_ligne, id_col, number)].pop()
+    #             self.set_g(x, y, number)
+    #             return True
+    #     return False
+ 
+    # -- Techniques pour simplifier, réduire --
+
+    def simplifier(self):
+        changement = True
+        while changement:
+            changement = False
+            if self.singleton_nu():
+                changement = True
+
+
+            #     self.update_cases_vides()
+            #     self.set_valeurs()
+            # if self.singleton_cache_par_ligne():
+            #     changement = True
+            #     self.update_cases_vides()
+            #     self.set_valeurs()
+            # if self.singleton_cache_par_colonne():
+            #     changement = True
+            #     self.update_cases_vides()
+            #     self.set_valeurs()
+            # if self.singleton_cache_par_carre():
+            #     changement = True
+            #     self.update_cases_vides()
+            #     self.set_valeurs()
+
 
     # -- Résolution brute : le backtrack --
     
@@ -271,8 +348,8 @@ class Sudoku(object):
     def solve(self, optionTri=True, optionSingleton=True):
         self.temps = time.time()
         # self.update_cases_vides()
-        # if optionSingleton:
-        #     self.simplifier_plus_interdits()
+        if optionSingleton:
+            self.simplifier()
         self.solution = self.solve_by_backtracking(optionTri)
         self.temps = time.time() - self.temps
     
