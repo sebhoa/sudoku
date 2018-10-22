@@ -255,3 +255,21 @@ def simplifier_plus_interdits(self):
 
 
 
+    def analyse(self):
+        print('\n')
+        print(f'Statistiques pour {self.name}')
+        print('----')
+        for technique in ['singleton_nu', 'singleton_cache_par_ligne', 'singleton_cache_par_colonne',  
+        'singleton_cache_par_carre', 'candidats_identiques']:
+            print(f'{technique:30} : {self.profil[technique]:2} résolutions')
+        print(f'{"TOTAL":30} : {self.profil["total"]:2} résolutions')
+        print('----')
+        print(f'Par backtracking : {self.profil["backtracking"]} cases.')
+        if self.solution:
+            print(f'Au final, grille résolue en {self.temps:5.3f}s')
+        else:
+            print('Au final, grille non résolue.')
+        print('----')
+        print(self)
+    
+    
