@@ -147,8 +147,8 @@ def main():
 	if '.DS_Store' in fic:
 		fic.remove('.DS_Store')
 	all_grilles = solveOneOrMore(fic, rep, optTri, optChoix, optSingleton)
-	# for g in all_grilles:
-	# 	all_grilles[g].analyse()
+	for g in all_grilles:
+		all_grilles[g].analyse()
 
 
 
