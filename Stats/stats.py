@@ -1,13 +1,18 @@
 
+import sys
 
 
-
-listes = {0.5:[], 2:[]}
+listes = {0.01:[], 0.1:[]}
 bornes = list(listes.keys())
 bornes.sort()
 last = []
 
-with open('stats_all', 'r') as fin:
+if len(sys.argv) < 2:
+	filename = 'diaboliques'
+else:
+	filename = 'stats_fast'
+
+with open(filename, 'r') as fin:
 	for ligne in fin:
 		try:
 			name, tps = ligne.split()
