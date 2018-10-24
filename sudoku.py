@@ -1,4 +1,9 @@
-#! /usr/local/bin/python3
+"""
+Programme pour résoudre des sudoku et faire des tests
+de temps sur plusieurs grilles rangées dans des dossiers
+Auteur : Seb
+Date : 2018.10.24
+"""
 
 import random, time, sys, getopt, os
 import class_sudoku
@@ -110,7 +115,7 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 	toutes_les_grilles = {}
 	taille = len(l)
 	for id_fic, fic in enumerate(l):
-		print(f'{id_fic:05}', end='\b'*5, flush=True)
+		print(f'{id_fic:05} : {fic[4:]}', end='\b'*13, flush=True)
 		grille = class_sudoku.Sudoku(fic,os.path.join(Home,rep,fic))
 		toutes_les_grilles[fic] = grille
 		# print(f'\nGrille : {fic}')
@@ -119,10 +124,14 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 			print(grille)
 		grille.solve(optTri, optSingleton)
 		if optChoix != 'all':
-			if grille.solution:				# si tps != -1 alors c'est que la grille a été résolue et tps vaut le temps mis pour résoudre
-				if taille == 1:					# taille == 1 signifie qu'on résoud une seule grille et non tout un répertoire
-					print('\nSolution :')
-					print(grille)		
+			if grille.solution:
+				condition = taille == 1
+				# condition = grille.profil['candidats_identiques'] or grille.profil['hidden_pair']			
+				# if taille == 1:					# taille == 1 signifie qu'on résoud une seule grille et non tout un répertoire
+				if condition:					# taille == 1 signifie qu'on résoud une seule grille et non tout un répertoire
+					# print('\nSolution :')
+					# print(grille)	
+					grille.analyse()
 				# print(f'Résolue en : {grille.temps:.3f}s')
 				fstats.write(f'{fic[4:]} {grille.temps:.3f}\n')
 				tps.append(grille.temps)		# on mémorise le temps dans une liste pour calculer la moyenne ensuite 
@@ -134,7 +143,7 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 			print(tps)
 	afficheResume(tps)					# calcule et affiche le temps moyen
 	# ferr.close()
-	fstats.close()
+	# fstats.close()
 	return toutes_les_grilles
 
 # -- Main --------
