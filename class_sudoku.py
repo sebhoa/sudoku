@@ -38,8 +38,7 @@ FLAG = False
 
 # Techniques de simplification
 
-TECHNIQUES = ['singleton_nu', 'singleton_cache_par_ligne', 'singleton_cache_par_colonne',  
-        'singleton_cache_par_carre', 'candidats_identiques', 'hidden_pair', 'hidden_triple']
+TECHNIQUES = ['naked_single', 'hidden_single', 'hidden_pair', 'hidden_triple']
 HIDDEN = {2:'hidden_pair', 3:'hidden_triple'}
 
 # -- Une petite fonction utilitaire --
@@ -56,9 +55,9 @@ def modulo(x):
     fin = deb + MODULO
     return (y for y in range(deb, fin))
 
-def meme_carre(id_lig, id_col):
-    return ((lig, col) for lig in modulo(id_lig) for col in modulo(id_col) 
-                        if lig != id_lig or col != id_col)
+def block(id_row, id_col):
+    return ((lig, col) for lig in modulo(id_row) for col in modulo(id_col) 
+                        if lig != id_row or col != id_col)
  
 
 class Case():
@@ -69,16 +68,16 @@ class Case():
     def by_number_of_candidats(case):
         return len(case.candidats)
 
-    def __init__(self, id_ligne, id_col, val):
+    def __init__(self, row, col, val):
         self.val = val          # valeur stockée
-        self.id_lig = id_ligne  # les coordonnées de la case
-        self.id_col = id_col
-        self.ligne = {}     # dict des cases de la même ligne
-        self.colonne = {}   # dict des cases de la même colonne
-        self.carre = {}     # dict des cases du même carré 3x3
+        self.id_row = row  # les coordonnées de la case
+        self.id_col = col
+        self.same_row = {}     # dict des cases de la même ligne
+        self.same_col = {}   # dict des cases de la même colonne
+        self.same_block = {}     # dict des cases du même carré 3x3
         self.candidats = set(NUMBERS)  # l'ensemble des nombres possibles pour val
+        self.impacted = set() # l'ensemble des cases impactées par un changement
         self.interdits = set()  # l'ensemble des nombres interdits
-        self.cases_impactees = set() # l'ensemble des cases impactées par un changement
 
 
     def __repr__(self):
@@ -89,13 +88,13 @@ class Case():
 
     def infos(self):
         """ fonction pour debuggage à supprimer """
-        print(f'{self.id_lig, self.id_col}', end=' ')
-        if self.vide():
+        print(f'{self.id_row, self.id_col}', end=' ')
+        if self.empty():
             print(f'{self.candidats}')
         else:
             print(f'{self.val}')
 
-    def vide(self):
+    def empty(self):
         return self.val == VIDE
 
     def set_val(self, v):
@@ -105,28 +104,28 @@ class Case():
 
     def propage(self):
         v = self.val
-        for (id_lig, id_col), case in self.ligne.items():
+        for (id_row, id_col), case in self.same_row.items():
             try:
                 case.candidats.remove(v)
-                self.cases_impactees.add(case)
+                self.impacted.add(case)
             except:
                 pass
-        for (id_lig, id_col), case in self.colonne.items():
+        for (id_row, id_col), case in self.same_col.items():
             try:
                 case.candidats.remove(v)
-                self.cases_impactees.add(case)
+                self.impacted.add(case)
             except:
                 pass
-        for (id_lig, id_col), case in self.carre.items():
+        for (id_row, id_col), case in self.same_block.items():
             try:
                 case.candidats.remove(v)
-                self.cases_impactees.add(case)
+                self.impacted.add(case)
             except:
                 pass
 
     def erase_val(self):
-        while self.cases_impactees:
-            case = self.cases_impactees.pop()
+        while self.impacted:
+            case = self.impacted.pop()
             case.candidats.add(self.val)
         #self.candidats.add(self.val)
         self.val = VIDE
@@ -150,9 +149,9 @@ class Sudoku(object):
         self.difficulty = ""    # difficulté mais je ne sais pas si ça sert ;-)
         self.cases_vides = []   # la liste des cases vides
 
-        self.valeurs_par_lignes = []
-        self.valeurs_par_colonnes = []
-        self.valeurs_par_carres = []
+        self.candidats_by_row = []
+        self.candidats_by_col = []
+        self.candidats_by_block = []
         # Pour afficher combien de fois telle ou telle méthode a été utilisée :
         self.profil = {tech:0 for tech in TECHNIQUES}
         self.profil['backtracking'] = 0
@@ -170,7 +169,7 @@ class Sudoku(object):
             for j in range(SIZE):
                 if j % MODULO == 0:
                     chaine += f'{VSEP} '
-                if not self.vide(i, j):
+                if not self.empty(i, j):
                     chaine += f'{str(self.case(i, j))} '
                 else:
                     chaine += ". "
@@ -185,11 +184,11 @@ class Sudoku(object):
     def init_grille(self, name, fichier):
         if fichier != "":
             with open(fichier, 'r') as fp:
-                for id_ligne, ligne in enumerate(fp):
-                    for id_col, val in enumerate(ligne.split()):
+                for id_row, row in enumerate(fp):
+                    for id_col, val in enumerate(row.split()):
                         val = int(val)
-                        new_case = Case(id_ligne, id_col, val)
-                        self.grille[(id_ligne, id_col)] = new_case
+                        new_case = Case(id_row, id_col, val)
+                        self.grille[(id_row, id_col)] = new_case
                         if val == VIDE:
                             self.cases_vides.append(new_case)
                         else:
@@ -200,12 +199,12 @@ class Sudoku(object):
         else:
             print("Vous n'avez pas fourni de fichier texte.")
             print("Veuillez donner les lignes de chiffres :")
-            for id_ligne in range(SIZE):
-                ligne = input(f'Ligne {i+1} : ')
-                for id_col, val in enumerate(ligne.split()):
+            for id_row in range(SIZE):
+                row = input(f'Ligne {i+1} : ')
+                for id_col, val in enumerate(row.split()):
                     val = int(val)
-                    new_case = Case(id_ligne, id_col, val)
-                    self.grille[(id_ligne, id_col)] = new_case
+                    new_case = Case(id_row, id_col, val)
+                    self.grille[(id_row, id_col)] = new_case
                     if val == VIDE:
                         self.cases_vides.append(new_case)
                     else:
@@ -220,12 +219,12 @@ class Sudoku(object):
         et propage éventuellement sa valeur non vide ie l'enleve des candidats
         des zones concernées
         """
-        for id_ligne, id_col in self.grille:
-            case = self.case(id_ligne, id_col)
-            case.ligne = {(id_ligne, col):self.case(id_ligne, col) for col in diff(range(SIZE), id_col)}
-            case.colonne = {(lig, id_col):self.case(lig, id_col) for lig in diff(range(SIZE), id_ligne)}
-            case.carre = {(lig, col):self.case(lig, col) for lig, col in meme_carre(id_ligne, id_col)}
-            if not case.vide():
+        for id_row, id_col in self.grille:
+            case = self.case(id_row, id_col)
+            case.same_row = {(id_row, a):self.case(id_row, a) for a in diff(range(SIZE), id_col)}
+            case.same_col = {(a, id_col):self.case(a, id_col) for a in diff(range(SIZE), id_row)}
+            case.same_block = {(a, b):self.case(a, b) for a, b in block(id_row, id_col)}
+            if not case.empty():
                 case.propage()
 
 
@@ -246,9 +245,9 @@ class Sudoku(object):
     def erase_case(self, case):
         case.erase_val()
 
-    def vide(self, i, j):
+    def empty(self, i, j):
         """ Demande à la Case (i, j) si elle est vide """
-        return self.case(i,j).vide()
+        return self.case(i,j).empty()
     
     
     def nb_cases_vides(self):
@@ -258,7 +257,6 @@ class Sudoku(object):
         self.cases_vides.sort(key=Case.by_number_of_candidats)
     
     
-    # -- Obtenir une zone (appelée house sur le site Hudoku) --
 
 
 
@@ -272,121 +270,143 @@ class Sudoku(object):
         Et pour chaque colonne j et pour chaque entier number de 1 à 9
         le set des positions (lignes) où on peut placer number
         """ 
-        self.valeurs_par_lignes = {(i, n):set() for i in range(SIZE) for n in NUMBERS}
-        self.valeurs_par_colonnes = {(j, n):set() for j in range(SIZE) for n in NUMBERS}
-        self.valeurs_par_carres = {(ic, jc, n):set() for ic in range(MODULO) for jc in range(MODULO) for n in NUMBERS}
+        self.candidats_by_row = {(i, n):set() for i in range(SIZE) for n in NUMBERS}
+        self.candidats_by_col = {(j, n):set() for j in range(SIZE) for n in NUMBERS}
+        self.candidats_by_block = {(ic, jc, n):set() for ic in range(MODULO) for jc in range(MODULO) for n in NUMBERS}
         for case in self.cases_vides:
-            i_carre = case.id_lig // MODULO
+            i_carre = case.id_row // MODULO
             j_carre = case.id_col // MODULO
             for n in case.candidats:
-                self.valeurs_par_lignes[(case.id_lig, n)].add(case.id_col)
-                self.valeurs_par_colonnes[(case.id_col, n)].add(case.id_lig)
-                self.valeurs_par_carres[(i_carre, j_carre, n)].add((case.id_lig,case.id_col))
+                self.candidats_by_row[(case.id_row, n)].add(case.id_col)
+                self.candidats_by_col[(case.id_col, n)].add(case.id_row)
+                self.candidats_by_block[(i_carre, j_carre, n)].add((case.id_row,case.id_col))
 
 
                     
 
 
 
-    # -- Recherche de singletons --
+    # -- HIDDEN SINGLE --
 
-    def singleton_nu(self):
+    def naked_single(self):
         """
         Si pour une case vide (x,y) il n'y a qu'une
         seule possibilité alors on joue cette valeur
         """
-        nb = 0
-        self.tri_cases_vides()
+        found = False
         while self.nb_cases_vides() and self.cases_vides[0].singleton():
             case_vide = self.cases_vides.pop(0)
             val = case_vide.candidats.pop()
             self.set_case(case_vide, val)
-            nb += 1
-            self.profil['singleton_nu'] += 1
-            self.tri_cases_vides()
-        return nb
+            found = True
+            self.profil['naked_single'] += 1
+        if found:
+            self.set_valeurs()
+        return found
 
-    def singleton_cache_par_ligne(self):
-        for id_ligne, number in self.valeurs_par_lignes:
-            if len(self.valeurs_par_lignes[(id_ligne, number)]) == 1:
-                self.profil['singleton_cache_par_ligne'] += 1
-                id_col = self.valeurs_par_lignes[(id_ligne, number)].pop()
-                self.cases_vides.remove(self.case(id_ligne, id_col))
-                # input(f'ligne {id_ligne} on met {number} en {id_col}')
-                self.set_by_coord(id_ligne, id_col, number)
-                return True
+    def hidden_single_by_row(self):
+        found = False
+        for id_row, number in self.candidats_by_row:
+            if len(self.candidats_by_row[(id_row, number)]) == 1:
+                self.profil['hidden_single'] += 1
+                id_col = self.candidats_by_row[(id_row, number)].pop()
+                self.cases_vides.remove(self.case(id_row, id_col))
+                self.set_by_coord(id_row, id_col, number)
+                found = True
+        if found:
+            self.set_valeurs()
         return False
 
-    def singleton_cache_par_colonne(self):
-        for id_col, number in self.valeurs_par_colonnes:
-            if len(self.valeurs_par_colonnes[(id_col, number)]) == 1:
-                self.profil['singleton_cache_par_colonne'] += 1
-                id_ligne = self.valeurs_par_colonnes[(id_col, number)].pop()
-                self.cases_vides.remove(self.case(id_ligne, id_col))
-                self.set_by_coord(id_ligne, id_col, number)
-                return True
-        return False
+    def hidden_single_by_col(self):
+        found = False
+        for id_col, number in self.candidats_by_col:
+            if len(self.candidats_by_col[(id_col, number)]) == 1:
+                self.profil['hidden_single'] += 1
+                id_row = self.candidats_by_col[(id_col, number)].pop()
+                self.set_by_coord(id_row, id_col, number)
+                self.cases_vides.remove(self.case(id_row, id_col))
+                found = True
+        if found:
+            self.set_valeurs()
+        return found
 
-    def singleton_cache_par_carre(self):
-        for id_ligne, id_col, number in self.valeurs_par_carres:
-            if len(self.valeurs_par_carres[(id_ligne, id_col, number)]) == 1:
-                self.profil['singleton_cache_par_carre'] += 1
-                x, y = self.valeurs_par_carres[(id_ligne, id_col, number)].pop()
-                self.cases_vides.remove(self.case(x, y))
+    def hidden_single_by_block(self):
+        found = False
+        for id_row, id_col, number in self.candidats_by_block:
+            if len(self.candidats_by_block[(id_row, id_col, number)]) == 1:
+                self.profil['hidden_single'] += 1
+                x, y = self.candidats_by_block[(id_row, id_col, number)].pop()
                 self.set_by_coord(x, y, number)
-                return True
-        return False
+                self.cases_vides.remove(self.case(x, y))
+                found = True
+        if found:
+            self.set_valeurs()
+        return found
  
     
-
-
-    # -- Hidden Subsets --
-
-    def hidden_subset_par_lignes(self, id_lig, k):
+    def hidden_single(self):
+        """
+        Recherche de single 
+        """
         found = False
-        subset = {n for n in NUMBERS if 0 < len(self.valeurs_par_lignes[(id_lig, n)]) <= k}
+        found = self.hidden_single_by_row() or found
+        found = self.hidden_single_by_col() or found 
+        found = self.hidden_single_by_block() or found
+        return found
+
+
+    # -- INTERSECTIONS -- 
+
+
+
+
+    # -- HIDDEN SUBSETS --
+
+    def hidden_subset_by_row(self, id_row, k):
+        found = False
+        subset = {n for n in NUMBERS if 0 < len(self.candidats_by_row[(id_row, n)]) <= k}
         if len(subset) == k:
-            cols = {col for n in subset for col in self.valeurs_par_lignes[(id_lig, n)]}
+            cols = {col for n in subset for col in self.candidats_by_row[(id_row, n)]}
             if len(cols) == k:
                 for id_col in cols:
-                    candidats = self.case(id_lig, id_col).candidats
+                    candidats = self.case(id_row, id_col).candidats
                     inter = candidats & subset
                     if len(candidats) > len(inter):
-                        self.case(id_lig, id_col).candidats = inter
+                        self.case(id_row, id_col).candidats = inter
                         found = True
                 if found:
                     self.profil[HIDDEN[k]] += 1
         return found
 
 
-    def hidden_subset_par_colonnes(self, id_col, k):
+    def hidden_subset_by_col(self, id_col, k):
         found = False
-        subset = {n for n in NUMBERS if 0 < len(self.valeurs_par_colonnes[(id_col, n)]) <= k}
+        subset = {n for n in NUMBERS if 0 < len(self.candidats_by_col[(id_col, n)]) <= k}
         if len(subset) == k:
-            ligs = {lig for n in subset for lig in self.valeurs_par_colonnes[(id_col, n)]}
-            if len(ligs) == k:
-                for id_lig in ligs:
-                    candidats = self.case(id_lig, id_col).candidats
+            row_ids = {a for n in subset for a in self.candidats_by_col[(id_col, n)]}
+            if len(row_ids) == k:
+                for id_row in row_ids:
+                    candidats = self.case(id_row, id_col).candidats
                     inter = candidats & subset
                     if len(candidats) > len(inter):
-                        self.case(id_lig, id_col).candidats = inter
+                        self.case(id_row, id_col).candidats = inter
                         found = True
                 if found:
                     self.profil[HIDDEN[k]] += 1
         return found
 
 
-    def hidden_subset_par_carre(self, i_carre, j_carre, k):
+    def hidden_subset_by_block(self, i_block, j_block, k):
         found = False
-        subset = {n for n in NUMBERS if 0 < len(self.valeurs_par_carres[(i_carre, j_carre, n)]) <= k}
+        subset = {n for n in NUMBERS if 0 < len(self.candidats_by_block[(i_block, j_block, n)]) <= k}
         if len(subset) == k:
-            cases = {(lig, col) for n in subset for lig, col in self.valeurs_par_carres[(i_carre, j_carre, n)]}
+            cases = {(lig, col) for n in subset for lig, col in self.candidats_by_block[(i_block, j_block, n)]}
             if len(cases) == k:
-                for id_lig, id_col in cases:
-                    candidats = self.case(id_lig, id_col).candidats
+                for id_row, id_col in cases:
+                    candidats = self.case(id_row, id_col).candidats
                     inter = candidats & subset
                     if len(candidats) > len(inter):
-                        self.case(id_lig, id_col).candidats = inter
+                        self.case(id_row, id_col).candidats = inter
                         found = True
                 if found:
                     self.profil[HIDDEN[k]] += 1
@@ -399,12 +419,12 @@ class Sudoku(object):
         Recherche de pair cachés 
         """
         found = False
-        for id_lig in range(SIZE):
-            found = self.hidden_subset_par_lignes(id_lig, 2) or found
+        for id_row in range(SIZE):
+            found = self.hidden_subset_by_row(id_row, 2) or found
         for id_col in range(SIZE):
-            found = self.hidden_subset_par_colonnes(id_col, 2) or found 
+            found = self.hidden_subset_by_col(id_col, 2) or found 
         for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
-            found = self.hidden_subset_par_carre(i_carre, j_carre, 2) or found
+            found = self.hidden_subset_by_block(i_carre, j_carre, 2) or found
         return found
 
 
@@ -413,72 +433,48 @@ class Sudoku(object):
         Recherche de triplets cachés 
         """
         found = False
-        for id_lig in range(SIZE):
-            found = self.hidden_subset_par_lignes(id_lig, 3) or found
+        for id_row in range(SIZE):
+            found = self.hidden_subset_by_row(id_row, 3) or found
         for id_col in range(SIZE):
-            found = self.hidden_subset_par_colonnes(id_col, 3) or found 
+            found = self.hidden_subset_by_col(id_col, 3) or found 
         for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
-            found = self.hidden_subset_par_carre(i_carre, j_carre, 3) or found
+            found = self.hidden_subset_by_block(i_carre, j_carre, 3) or found
         return found
 
 
+    # -- XY-WINGS --
+    # Plus tard
 
 
-    # -- Techniques pour simplifier, réduire --
+
+    # -- APPEL AUX TECH DE SIMPLIFICATION --
+
 
     def simplifier(self):
         self.set_valeurs()
         changement = True
         while self.nb_cases_vides() > 0 and changement:
-            changement = False
-            if self.singleton_nu():
-                changement = True
-                self.tri_cases_vides()
-                self.set_valeurs()
-            if self.singleton_cache_par_ligne():
-                changement = True
-                self.tri_cases_vides()
-                self.set_valeurs()
-            if self.singleton_cache_par_colonne():
-                changement = True
-                self.tri_cases_vides()
-                self.set_valeurs()
-            if self.singleton_cache_par_carre():
-                changement = True
-                self.tri_cases_vides()
-                self.set_valeurs()
-
-    def simplifier2(self):
-        self.set_valeurs()
-        changement = True
-        while self.nb_cases_vides() > 0 and changement:
             while changement:
                 changement = False
-                if self.singleton_nu():
-                    changement = True
-                    self.tri_cases_vides()
-                    self.set_valeurs()
-                if self.singleton_cache_par_ligne():
-                    changement = True
-                    self.tri_cases_vides()
-                    self.set_valeurs()
-                if self.singleton_cache_par_colonne():
-                    changement = True
-                    self.tri_cases_vides()
-                    self.set_valeurs()
-                if self.singleton_cache_par_carre():
-                    changement = True
-                    self.tri_cases_vides()
-                    self.set_valeurs()
+                changement = self.naked_single() or changement
+                    # changement = True
+                    # self.tri_cases_vides()
+                    # self.set_valeurs()
+                changement = self.hidden_single() or changement
+                    # changement = True
+                    # self.tri_cases_vides()
+                    # self.set_valeurs()
             if not changement and self.nb_cases_vides() > 0:
                 if self.hidden_pair():
                     changement = True
-                    self.tri_cases_vides()
+                    # self.tri_cases_vides()
                     self.set_valeurs()
                 if self.hidden_triple():
                     changement = True
-                    self.tri_cases_vides()
+                    # self.tri_cases_vides()
                     self.set_valeurs()
+
+
 
     # -- Recherche de valeurs interdites pour les cases vides --
 
@@ -491,12 +487,12 @@ class Sudoku(object):
         """
         trouve = False
         for case in self.cases_vides:
-            ligne_id, col_id = case.id_lig, case.id_col
-            cases_vides_par_lignes = [self.case(ligne_id, x) for x in range(SIZE) if self.vide(ligne_id, x)]
+            ligne_id, col_id = case.id_row, case.id_col
+            cases_vides_par_lignes = [self.case(ligne_id, x) for x in range(SIZE) if self.empty(ligne_id, x)]
             pareil_que_j = x_pareil(cases_vides_par_lignes, col_id)
             if pareil_que_j != [] and len(pareil_que_j)+1 == len(case.candidats):
                 pareil_que_j.append(col_id)
-                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.vide(ligne_id, k)]
+                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.empty(ligne_id, k)]
                 nb = 0
                 for k in indices:
                     case_k = self.case(ligne_id, k)
@@ -514,12 +510,12 @@ class Sudoku(object):
         """
         trouve = False
         for case in self.cases_vides:
-            ligne_id, col_id = case.id_lig, case.id_col
-            cases_vides_par_colonnes = [self.case(x, col_id) for x in range(SIZE) if self.vide(x, col_id)]
+            ligne_id, col_id = case.id_row, case.id_col
+            cases_vides_par_colonnes = [self.case(x, col_id) for x in range(SIZE) if self.empty(x, col_id)]
             pareil_que_j = x_pareil(cases_vides_par_colonnes, ligne_id)
             if pareil_que_j != [] and len(pareil_que_j)+1 == len(case.candidats):
                 pareil_que_j.append(ligne_id)
-                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.vide(k, col_id)]
+                indices = [k for k in range(SIZE) if k not in pareil_que_j and self.empty(k, col_id)]
                 nb = 0
                 for k in indices:
                     case_k = self.case(k, col_id)
@@ -543,11 +539,11 @@ class Sudoku(object):
         self.set_valeurs()
         while changement:
             changement = False
-            self.simplifier2()
-            self.set_valeurs()
-            # changement = self.trouver_valeurs_interdites()
-            # if changement:
-            #     self.set_valeurs()
+            self.simplifier()
+            # self.set_valeurs()
+            changement = self.trouver_valeurs_interdites()
+            if changement:
+                self.set_valeurs()
 
     # -- Résolution brute : le backtrack --
     
@@ -557,10 +553,6 @@ class Sudoku(object):
             return True
         else:
             case_vide = self.cases_vides.pop(0)
-            # case_vide.infos()
-            # print(self)
-            # input()
-
             memoire = [] # pour mémoriser les candidats (pour les remettre)
             while case_vide.candidats:
                 e = case_vide.candidats.pop()
@@ -581,10 +573,9 @@ class Sudoku(object):
         
     def solve(self, optionTri=True, optionSingleton=True):
         self.temps = time.time()
-        # self.update_cases_vides()
         if optionSingleton:
-            self.simplifier_plus_interdits()
-            # self.simplifier()
+            # self.simplifier_plus_interdits()
+            self.simplifier()
         self.solution = self.solve_by_backtracking(optionTri)
         self.temps = time.time() - self.temps
     
@@ -592,13 +583,14 @@ class Sudoku(object):
     # -- Pour afficher des stats de la résolution --
 
     def analyse(self):
+        nbcar = max(len(s) for s in TECHNIQUES) + 2
         print(f'Statistiques pour {self.name}')
         print('----')
         total = 0
         for technique in TECHNIQUES:
             total += self.profil[technique]
-            print(f'{technique:30} : {self.profil[technique]:2} résolutions')
-        print(f'{"TOTAL":30} : {total:2} résolutions')
+            print(f'{technique:{nbcar}} : {self.profil[technique]:2} résolutions')
+        print(f'{"TOTAL":{nbcar}} : {total:2} résolutions')
         print('----')
         print(f'Par backtracking : {self.profil["backtracking"]} cases.')
         if self.solution:

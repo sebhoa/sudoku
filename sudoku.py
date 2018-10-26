@@ -110,7 +110,7 @@ def afficheResume(tps):
 # Traiter 1 ou plusieurs grilles ?
 def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 	# ferr = open('big.log','w')
-	fstats = open('stats_all','w')
+	# fstats = open('stats_all','w')
 	tps = []
 	toutes_les_grilles = {}
 	taille = len(l)
@@ -132,8 +132,8 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 					# print('\nSolution :')
 					# print(grille)	
 					grille.analyse()
-				# print(f'Résolue en : {grille.temps:.3f}s')
-				fstats.write(f'{fic[4:]} {grille.temps:.3f}\n')
+				print(f'Résolue en : {grille.temps:.3f}s')
+				# fstats.write(f"{fic[4:]} {grille.temps:.3f} {grille.profil['backtracking']}\n")
 				tps.append(grille.temps)		# on mémorise le temps dans une liste pour calculer la moyenne ensuite 
 			else:
 				print('Non résolue !')
