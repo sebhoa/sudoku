@@ -108,9 +108,9 @@ def afficheResume(tps):
 		print(f'Temps moyen : {sum(tps)/len(tps):.3f}s')
 
 # Traiter 1 ou plusieurs grilles ?
-def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
+def solveOneOrMore(l, rep, optTri=True, optChoix='', optSingleton=True):
 	# ferr = open('big.log','w')
-	# fstats = open('stats_all','w')
+	fstats = open(f'stats_{TYPE}','w')
 	tps = []
 	toutes_les_grilles = {}
 	taille = len(l)
@@ -132,8 +132,8 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 					# print('\nSolution :')
 					# print(grille)	
 					grille.analyse()
-				print(f'Résolue en : {grille.temps:.3f}s')
-				# fstats.write(f"{fic[4:]} {grille.temps:.3f} {grille.profil['backtracking']}\n")
+				# print(f'Résolue en : {grille.temps:.3f}s')
+				fstats.write(f"{fic[4:]} {grille.temps:.3f} {grille.profil['backtracking']}\n")
 				tps.append(grille.temps)		# on mémorise le temps dans une liste pour calculer la moyenne ensuite 
 			else:
 				print('Non résolue !')
@@ -143,25 +143,29 @@ def solveOneOrMore(l, rep, optTri, optChoix, optSingleton):
 			print(tps)
 	afficheResume(tps)					# calcule et affiche le temps moyen
 	# ferr.close()
-	# fstats.close()
+	fstats.close()
 	return toutes_les_grilles
 
 # -- Main --------
 # ----------------
 
 def main():
-	fic, rep, optTri, optChoix, optSingleton = settings(sys.argv[1:])
+	#fic, rep, optTri, optChoix, optSingleton = settings(sys.argv[1:])
 	# ceci est spécifique à Mac : lorsqu'on manipule les répertoires via l'interface graphique ce fichier .DS_Store apparaît
 	# il faut bien sûr ne pas le traiter comme étant un fichier de sudoku
-	if '.DS_Store' in fic:
-		fic.remove('.DS_Store')
-	all_grilles = solveOneOrMore(fic, rep, optTri, optChoix, optSingleton)
+	# if '.DS_Store' in fic:
+	# 	fic.remove('.DS_Store')
+	optTri, optChoix, optSingleton = True, '', True
+	rep = 'BigDossier'
+	with open(f'all_{TYPE}', 'r') as f_files:
+		les_fichiers = [ligne[:-1] for ligne in f_files]
+	all_grilles = solveOneOrMore(les_fichiers, rep, optTri, optChoix, optSingleton)
 	# for g in all_grilles:
 	# 	all_grilles[g].analyse()
 
 
 
-
+TYPE = sys.argv[1]
 if __name__ == "__main__":
 	main()	
 		

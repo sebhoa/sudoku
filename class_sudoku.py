@@ -610,8 +610,8 @@ class Sudoku(object):
 
 
 def main():
-    dossier = 'GrillesDiaboliques'
-    id_fic = '36749'
+    dossier = 'BigDossier'
+    id_fic = sys.argv[1]
     mon_sudoku = Sudoku(f'big_{id_fic}',f'{dossier}/big_{id_fic}')
     print(mon_sudoku)
     mon_sudoku.solve() 
