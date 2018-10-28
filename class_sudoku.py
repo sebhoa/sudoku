@@ -1,3 +1,5 @@
+#!/usr/local/bin/python3
+
 """
 Implémentation de sudoku par deux classes
 Essais d'implémentations de diverses techniques
@@ -30,24 +32,32 @@ BRC = '\u2518'  # Bottom Right Corner
 SBO = '\u2500'  # Simple BOrder
 VSEP = '|' # Vertical Line
 
+# Les lignes pour dessiner la grille
+#
 TOP = f'{TLC}{SBO * 7}{TIB}{SBO * 7}{TIB}{SBO * 7}{TRC}'
 MIDDLE = f'{MLB}{SBO * 7}{MIB}{SBO * 7}{MIB}{SBO * 7}{MRB}'
 BOTTOM = f'{BLC}{SBO * 7}{BIB}{SBO * 7}{BIB}{SBO * 7}{BRC}'
 
+# Juste pour des besoins de debbugage
+#
 FLAG = False
 
-# Techniques de simplification
+# Noms des Techniques de simplification
 
-TECHNIQUES = ['naked_single', 'hidden_single', 'hidden_pair', 'hidden_triple']
-HIDDEN = {2:'hidden_pair', 3:'hidden_triple'}
+TECHNIQUES = ['naked_single', 'hidden_single',
+            'locked_type_1', 
+            'hidden_pair', 'hidden_triple', 'hidden_quadruple', ]
+HIDDEN = {2:'hidden_pair', 3:'hidden_triple', 4:'hidden_quadruple'}
 
-# -- Une petite fonction utilitaire --
-# -- que je ne sais pas trop où mettre  --
+# -- Petites fonctions utilitaires --
+# TODO : en faire un petit module utilitaire
 
 def x_pareil(liste, j):
+    """ Retourne la liste des indices i > j et tels que liste[i] == liste[j] """
     return [i for i in range(j+1,len(liste)) if liste[i] == liste[j]]
 
 def diff(ens, *args):
+    """ Pour récupérer les élements d'une séquence différents de certains éléments """
     return (x for x in ens if x not in args)
 
 def modulo(x):
@@ -56,9 +66,28 @@ def modulo(x):
     return (y for y in range(deb, fin))
 
 def block(id_row, id_col):
+    """ les coordonnées des cases dans le block de la case id_row, id_col """
     return ((lig, col) for lig in modulo(id_row) for col in modulo(id_col) 
                         if lig != id_row or col != id_col)
  
+def range_modulo(x):
+    d = MODULO * x
+    f = d + MODULO
+    return (y for y in range(d,f))
+
+def one_block(lblock, cblock):
+    return ((lig, col) for lig in range_modulo(lblock) for col in range_modulo(cblock))
+
+def blocks_coord():
+    return ((i, j) for i in range(MODULO) for j in range(MODULO))
+
+def on_one_row(coords):
+    """ est-ce que les coords de coords sont sur une même ligne """
+    return {e[0] for e in coords}
+
+def on_one_col(coords):
+    """ est-ce que les coords de coords sont sur une même ligne """
+    return {e[1] for e in coords}
 
 class Case():
     """ Classe qui modélise une case de sudoku """
@@ -69,15 +98,16 @@ class Case():
         return len(case.candidats)
 
     def __init__(self, row, col, val):
-        self.val = val          # valeur stockée
-        self.id_row = row  # les coordonnées de la case
+        self.val = val                  # valeur stockée
+        self.id_row = row               # les coordonnées de la case
         self.id_col = col
-        self.same_row = {}     # dict des cases de la même ligne
-        self.same_col = {}   # dict des cases de la même colonne
-        self.same_block = {}     # dict des cases du même carré 3x3
-        self.candidats = set(NUMBERS)  # l'ensemble des nombres possibles pour val
-        self.impacted = set() # l'ensemble des cases impactées par un changement
-        self.interdits = set()  # l'ensemble des nombres interdits
+        self.same_row = {}              # dict des cases de la même ligne
+        self.same_col = {}              # dict des cases de la même colonne
+        self.same_block = {}            # dict des cases du même carré 3x3
+        self.candidats = set(NUMBERS)   # l'ensemble des nombres possibles la case
+        self.impacted = set()           # l'ensemble des cases impactées par un changement
+
+        self.interdits = set()          # l'ensemble des nombres interdits
 
 
     def __repr__(self):
@@ -149,9 +179,9 @@ class Sudoku(object):
         self.difficulty = ""    # difficulté mais je ne sais pas si ça sert ;-)
         self.cases_vides = []   # la liste des cases vides
 
-        self.candidats_by_row = []
-        self.candidats_by_col = []
-        self.candidats_by_block = []
+        self.candidats_by_row = set()
+        self.candidats_by_col = set()
+        self.candidats_by_block = set()
         # Pour afficher combien de fois telle ou telle méthode a été utilisée :
         self.profil = {tech:0 for tech in TECHNIQUES}
         self.profil['backtracking'] = 0
@@ -235,13 +265,14 @@ class Sudoku(object):
         """ Retourne une référence vers la Case de coordonnée (i, j) """
         return self.grille[(i,j)]
 
-    def set_by_coord(self, i, j, v):
-        self.case(i,j).set_val(v)
-
     def set_case(self, case, v):
         """ Demande à la Case case de mettre à jour sa valeur avec v """
         case.set_val(v)
     
+    def set_by_coord(self, i, j, v):
+        """ Même chose mais avec les coordonnées de la case """
+        self.case(i,j).set_val(v)
+
     def erase_case(self, case):
         case.erase_val()
 
@@ -256,8 +287,6 @@ class Sudoku(object):
     def tri_cases_vides(self):
         self.cases_vides.sort(key=Case.by_number_of_candidats)
     
-    
-
 
 
 
@@ -311,11 +340,13 @@ class Sudoku(object):
                 self.profil['hidden_single'] += 1
                 id_col = self.candidats_by_row[(id_row, number)].pop()
                 self.cases_vides.remove(self.case(id_row, id_col))
+                self.case(id_row, id_col).candidats = set()
                 self.set_by_coord(id_row, id_col, number)
                 found = True
         if found:
             self.set_valeurs()
         return False
+
 
     def hidden_single_by_col(self):
         found = False
@@ -323,8 +354,9 @@ class Sudoku(object):
             if len(self.candidats_by_col[(id_col, number)]) == 1:
                 self.profil['hidden_single'] += 1
                 id_row = self.candidats_by_col[(id_col, number)].pop()
-                self.set_by_coord(id_row, id_col, number)
                 self.cases_vides.remove(self.case(id_row, id_col))
+                self.case(id_row, id_col).candidats = set()
+                self.set_by_coord(id_row, id_col, number)
                 found = True
         if found:
             self.set_valeurs()
@@ -335,9 +367,10 @@ class Sudoku(object):
         for id_row, id_col, number in self.candidats_by_block:
             if len(self.candidats_by_block[(id_row, id_col, number)]) == 1:
                 self.profil['hidden_single'] += 1
-                x, y = self.candidats_by_block[(id_row, id_col, number)].pop()
-                self.set_by_coord(x, y, number)
-                self.cases_vides.remove(self.case(x, y))
+                row, col = self.candidats_by_block[(id_row, id_col, number)].pop()
+                self.cases_vides.remove(self.case(row, col))
+                self.case(row, col).candidats = set()
+                self.set_by_coord(row, col, number)
                 found = True
         if found:
             self.set_valeurs()
@@ -355,11 +388,35 @@ class Sudoku(object):
         return found
 
 
-    # -- INTERSECTIONS -- 
+    # -- INTERSECTIONS --
+
+    def locked_type_1(self):
+        found = False
+        for lblock, cblock, n in self.candidats_by_block:
+            uniq_row = on_one_row(self.candidats_by_block[(lblock, cblock, n)])
+            if len(uniq_row) == 1:
+                the_row = uniq_row.pop()
+                for id_col in self.candidats_by_row[(the_row, n)]:
+                    if id_col // MODULO != cblock and n in self.case(the_row, id_col).candidats: 
+                        self.case(the_row, id_col).candidats.remove(n)
+                        found = True
+            else:
+                uniq_col = on_one_col(self.candidats_by_block[(lblock, cblock, n)])
+                if len(uniq_col) == 1:
+                    the_col = uniq_col.pop()
+                    for id_row in self.candidats_by_col[(the_col, n)]:
+                        if id_row // MODULO != lblock and n in self.case(id_row, the_col).candidats: 
+                            self.case(id_row, the_col).candidats.remove(n)
+                            found = True
+
+            if found:
+                self.profil['locked_type_1'] += 1
+                self.set_valeurs()
+                return True
+        return False
 
 
-
-
+    
     # -- HIDDEN SUBSETS --
 
     def hidden_subset_by_row(self, id_row, k):
@@ -430,7 +487,7 @@ class Sudoku(object):
 
     def hidden_triple(self):
         """
-        Recherche de triplets cachés 
+        Recherche de triples cachés 
         """
         found = False
         for id_row in range(SIZE):
@@ -439,6 +496,20 @@ class Sudoku(object):
             found = self.hidden_subset_by_col(id_col, 3) or found 
         for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
             found = self.hidden_subset_by_block(i_carre, j_carre, 3) or found
+        return found
+
+
+    def hidden_quadruple(self):
+        """
+        Recherche de quadruples cachés 
+        """
+        found = False
+        for id_row in range(SIZE):
+            found = self.hidden_subset_by_row(id_row, 4) or found
+        for id_col in range(SIZE):
+            found = self.hidden_subset_by_col(id_col, 4) or found 
+        for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
+            found = self.hidden_subset_by_block(i_carre, j_carre, 4) or found
         return found
 
 
@@ -451,32 +522,49 @@ class Sudoku(object):
 
 
     def simplifier(self):
-        self.set_valeurs()
+        """
+        Consiste à simplifier la grille ie à réduire le nombre
+        de cases vides par les techniques décrites dans le site
+        Hudoku, en commençant par les techniques les plus simples
+        """
         changement = True
+        self.set_valeurs()
         while self.nb_cases_vides() > 0 and changement:
+            # La recherche de singletons
+            #
             while changement:
                 changement = False
                 changement = self.naked_single() or changement
-                    # changement = True
-                    # self.tri_cases_vides()
-                    # self.set_valeurs()
                 changement = self.hidden_single() or changement
-                    # changement = True
-                    # self.tri_cases_vides()
-                    # self.set_valeurs()
+
+            # Plus de singleton et grille non encore résolue,
+            # on tente d'autres techniques
+
+                # Recherche d'intersections type 1
+                #
+                changement = self.locked_type_1() or changement
+                # print(self)
+
+
+
+            # Recherche de hidden subsets
+            #
             if not changement and self.nb_cases_vides() > 0:
                 if self.hidden_pair():
                     changement = True
-                    # self.tri_cases_vides()
                     self.set_valeurs()
                 if self.hidden_triple():
                     changement = True
-                    # self.tri_cases_vides()
                     self.set_valeurs()
+                if self.hidden_quadruple():
+                    changement = True
+                    self.set_valeurs()
+
 
 
 
     # -- Recherche de valeurs interdites pour les cases vides --
+    # -- ce code est à revoir... non utilisé pour l'instant --
 
     def interdites_par_ligne(self):
         """
@@ -571,6 +659,12 @@ class Sudoku(object):
             self.cases_vides.insert(0, case_vide)
             return False
         
+    
+
+    # -- La fonction pour résoudre sudoku --
+    # -- D'abord par simplifications diverses --
+    # -- puis par backtrack si reste des cases vides --
+
     def solve(self, optionTri=True, optionSingleton=True):
         self.temps = time.time()
         if optionSingleton:
@@ -612,7 +706,11 @@ class Sudoku(object):
 def main():
     dossier = 'BigDossier'
     id_fic = sys.argv[1]
-    mon_sudoku = Sudoku(f'big_{id_fic}',f'{dossier}/big_{id_fic}')
+    filename = f'big_{id_fic}'
+    if len(sys.argv) > 2:
+        dossier = sys.argv[2]
+        filename = f'{id_fic}'
+    mon_sudoku = Sudoku(filename,f'{dossier}/{filename}')
     print(mon_sudoku)
     mon_sudoku.solve() 
     mon_sudoku.analyse()

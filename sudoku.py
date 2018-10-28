@@ -1,3 +1,6 @@
+#!/usr/local/bin/python3
+
+
 """
 Programme pour résoudre des sudoku et faire des tests
 de temps sur plusieurs grilles rangées dans des dossiers
@@ -5,7 +8,11 @@ Auteur : Seb
 Date : 2018.10.24
 """
 
-import random, time, sys, getopt, os
+import random
+import time
+import sys
+import getopt
+import os
 import class_sudoku
 
 # CONSTANTES
@@ -110,7 +117,8 @@ def afficheResume(tps):
 # Traiter 1 ou plusieurs grilles ?
 def solveOneOrMore(l, rep, optTri=True, optChoix='', optSingleton=True):
 	# ferr = open('big.log','w')
-	fstats = open(f'stats_{TYPE}','w')
+	estamp = time.strftime('%Y_%m_%d_%H_%M_%S', time.localtime())
+	fstats = open(f'stats_{TYPE}_{estamp}','w')
 	tps = []
 	toutes_les_grilles = {}
 	taille = len(l)
@@ -157,7 +165,7 @@ def main():
 	# 	fic.remove('.DS_Store')
 	optTri, optChoix, optSingleton = True, '', True
 	rep = 'BigDossier'
-	with open(f'all_{TYPE}', 'r') as f_files:
+	with open(f'{TYPE}_backtrack', 'r') as f_files:
 		les_fichiers = [ligne[:-1] for ligne in f_files]
 	all_grilles = solveOneOrMore(les_fichiers, rep, optTri, optChoix, optSingleton)
 	# for g in all_grilles:

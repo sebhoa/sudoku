@@ -13,3 +13,13 @@ Dernières stats effectuées (rangées dans le dossier Stats) :
 
 * Sans backtrack : 26318 grilles, temps moyen : 0.007s
 * Avec backtrack : 22833 grilles, temps moyen : 0.034s
+
+
+## 2018.10.28
+
+* Ajout recherche locked type 1. A permis à qq grilles de passer sans backtrack
+
+Dernières stats effectuées (rangées dans le dossier Stats) :
+
+* Sans backtrack : 37381 grilles, temps moyen : 0.008s
+* Avec backtrack : 11770 grilles, temps moyen : 0.017s
