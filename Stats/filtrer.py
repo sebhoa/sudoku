@@ -1,4 +1,13 @@
+"""
+Permet de détecter des anomalies de temps
+sur les grilles... et de relancer la résolution
+
+Appel : filter.py temps_de_reference sans|avec
+"""
+
+
 import sys
+
 
 tps_ref = float(sys.argv[1])
 type_grille = sys.argv[2]

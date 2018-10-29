@@ -1,3 +1,9 @@
+"""
+Pour calculer le temps moyen d'un fichier de stats
+des grilles avec ou sans backtrack 
+
+Appel : temps_moyen.py sans|avec
+"""
 
 import sys
 
