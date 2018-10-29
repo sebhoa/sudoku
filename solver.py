@@ -56,17 +56,22 @@ class Solver:
 								action='store_true')
 		args = parser.parse_args()
 
+		# le fichier contenant toutes les grilles
+		#
 		if args.all:
 			main_filename = pathlib.Path.cwd() / REP_GRID / args.all
 		else:
 			main_filename = pathlib.Path.cwd() / REP_GRID / DEFAULT_SUDOKUS
 
+		# si on a 1 seul  identifiant de fichier c'est lui qu'on va résoudre
 		if args.id_file:
 			filtername = pathlib.Path.cwd() / REP_FILTER / 'default_filter'
 			with open(filtername, 'w') as output:
 				output.write(f'{args.id_file}\n')
+		# sinon on regarde dans le fichier filtre
 		elif args.filter:
 			filtername = pathlib.Path.cwd() / REP_FILTER / args.filter
+		# sinon pas de filtre et on prendra tous les fichiers
 		else:
 			filtername = ''
 
