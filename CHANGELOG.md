@@ -24,8 +24,19 @@ Dernières stats effectuées (rangées dans le dossier Stats) :
 * Sans backtrack : 37381 grilles, temps moyen : 0.008s
 * Avec backtrack : 11770 grilles, temps moyen : 0.017s
 
+
 ## 2018.10.29
 
 * Refonte du squelette : 
 	- classe_sudoku.py -> sudoku.py refonte de l'initialisation d'un sudoku. On crée avec une donnée de type chaine de 81 caractères 
 	- sudoku.py -> solver.py ce dernier a été simplifié. On utilise argparse pour passer qq options en revue
+
+
+## 2018.10.30
+
+* Ajout recherche des naked subsets
+
+Dernières stats effectuées :
+
+* Sans backtrack : 38742 grilles, temps moyen : 0.008s
+* Avec backtrack : 10409 grilles, temps moyen : 0.022s

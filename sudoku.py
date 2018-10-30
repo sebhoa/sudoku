@@ -45,9 +45,11 @@ FLAG = False
 # Noms des Techniques de simplification
 
 TECHNIQUES = ['naked_single', 'hidden_single',
-            'locked_type_1', 
-            'hidden_pair', 'hidden_triple', 'hidden_quadruple', ]
+            'locked_type_1', 'locked_type_2',
+            'hidden_pair', 'hidden_triple', 'hidden_quadruple',
+            'naked_pair', 'naked_triple', 'naked_quadruple', ]
 HIDDEN = {2:'hidden_pair', 3:'hidden_triple', 4:'hidden_quadruple'}
+NAKED = {2:'naked_pair', 3:'naked_triple', 4:'naked_quadruple'}
 
 # -- Petites fonctions utilitaires --
 # TODO : en faire un petit module utilitaire
@@ -61,12 +63,13 @@ def diff(ens, *args):
     return (x for x in ens if x not in args)
 
 def modulo(x):
+    """ les valeurs comprise dans le même intervalle MODULO que x """
     deb = x//MODULO * MODULO
     fin = deb + MODULO
     return (y for y in range(deb, fin))
 
 def block(id_row, id_col):
-    """ les coordonnées des cases dans le block de la case id_row, id_col """
+    """ les coordonnées des autres cases du block de la case id_row, id_col """
     return ((lig, col) for lig in modulo(id_row) for col in modulo(id_col) 
                         if lig != id_row or col != id_col)
  
@@ -76,18 +79,24 @@ def range_modulo(x):
     return (y for y in range(d,f))
 
 def one_block(lblock, cblock):
+    """ toutes les cases du bloc de mini_coords lblock, cblock """
     return ((lig, col) for lig in range_modulo(lblock) for col in range_modulo(cblock))
 
 def blocks_coord():
+    """ Les minis coords (0,0), (0,1), (0,2), (1,0), (1,1) etc des blocks """
     return ((i, j) for i in range(MODULO) for j in range(MODULO))
 
 def on_one_row(coords):
-    """ est-ce que les coords de coords sont sur une même ligne """
+    """ les indices de ligne pour les coords dans la collection coords """
     return {e[0] for e in coords}
 
 def on_one_col(coords):
-    """ est-ce que les coords de coords sont sur une même ligne """
+    """ les indices de colonne pour les coords dans la collection coords """
     return {e[1] for e in coords}
+
+def on_one_block(coords):
+    """ les coords des blocks des cases dans la collection coords """
+    return {(e[0]//MODULO, e[1]//MODULO) for e in coords}
 
 class Case:
     """ Classe qui modélise une case de sudoku """
@@ -228,7 +237,6 @@ class Sudoku:
                 self.cases_vides.append(new_case)
             else:
                 new_case.candidats.clear()
-        self.init_zones()
 
 
     def init_zones(self):
@@ -244,6 +252,7 @@ class Sudoku:
             case.same_block = {(a, b):self.case(a, b) for a, b in block(id_row, id_col)}
             if not case.empty():
                 case.propage()
+
 
 
 
@@ -297,6 +306,7 @@ class Sudoku:
                 self.candidats_by_row[(case.id_row, n)].add(case.id_col)
                 self.candidats_by_col[(case.id_col, n)].add(case.id_row)
                 self.candidats_by_block[(i_carre, j_carre, n)].add((case.id_row,case.id_col))
+
 
 
                     
@@ -380,8 +390,15 @@ class Sudoku:
     # -- INTERSECTIONS --
 
     def locked_type_1(self):
+        """
+        Recherche par block si des valeurs n ne seraient pas cantonnées à
+        une même ligne ou une même colonne... dès lors dans les autres blocks
+        ces valeurs peuvent être supprimées de la dite ligne ou colonne
+        """
         found = False
+        # on parcourt les blocks :
         for lblock, cblock, n in self.candidats_by_block:
+            # on regarde si n est cantonnée à une ligne
             uniq_row = on_one_row(self.candidats_by_block[(lblock, cblock, n)])
             if len(uniq_row) == 1:
                 the_row = uniq_row.pop()
@@ -389,6 +406,7 @@ class Sudoku:
                     if id_col // MODULO != cblock and n in self.case(the_row, id_col).candidats: 
                         self.case(the_row, id_col).candidats.remove(n)
                         found = True
+            # ou bien une colonne
             else:
                 uniq_col = on_one_col(self.candidats_by_block[(lblock, cblock, n)])
                 if len(uniq_col) == 1:
@@ -404,6 +422,47 @@ class Sudoku:
                 return True
         return False
 
+
+    def locked_type_2(self):
+        """
+        On recherche par ligne (et par colonne) si des valeurs sont cantonnées
+        à un même block ; dès lors ces valeurs sont supprimées dans autres cases
+        de ce block
+        """
+        found = False
+        for id_row, n in self.candidats_by_row:
+            cases = {(id_row, col) for col in self.candidats_by_row[(id_row, n)]}
+            uniq_block = on_one_block(cases)
+            if len(uniq_block) == 1:
+                block_row, block_col = uniq_block.pop()
+                for row, col in diff(one_block(block_row, block_col), *cases):
+                    try:
+                        self.case(row, col).candidats.remove(n)
+                        found = True
+                    except:
+                        pass
+                if found:
+                    self.profil['locked_type_2'] += 1
+                    self.set_valeurs()
+                    return True
+
+        for id_col, n in self.candidats_by_col:
+            cases = {(row, id_col) for row in self.candidats_by_col[(id_col, n)]}
+            uniq_block = on_one_block(cases)
+            if len(uniq_block) == 1:
+                block_row, block_col = uniq_block.pop()
+                for row, col in diff(one_block(block_row, block_col), *cases):
+                    try:
+                        self.case(row, col).candidats.remove(n)
+                        found = True
+                    except:
+                        pass
+                if found:
+                    self.profil['locked_type_2'] += 1
+                    self.set_valeurs()
+                    return True
+                
+        return False
 
     
     # -- HIDDEN SUBSETS --
@@ -502,6 +561,114 @@ class Sudoku:
         return found
 
 
+
+    # -- NAKED SUBSETS --
+
+
+    def inclusions(self, coords, k):
+        for c in coords:
+            s_pts = {c}
+            s_c = self.case(*c).candidats
+            for c2 in coords:
+                s_c2 = self.case(*c2).candidats
+                if s_c & s_c2:
+                    s_pts.add(c2)
+                    s_c = s_c | s_c2
+                if len(s_c) > k:
+                    break
+                if len(s_c) == k and len(s_pts) == k:
+                    return True, s_pts, s_c
+        return False, None, None
+
+
+
+
+
+    def naked_subset_by_row(self, id_row, k):
+        found = False
+        subset = {(id_row, col) for col in range(SIZE) if 1 < len(self.case(id_row, col).candidats) <= k}
+        ok, coords, candidats = self.inclusions(subset, k)
+        if ok:
+            for col in {c for c in range(SIZE) if self.case(id_row, c).empty() and (id_row, c) not in coords}:
+                if self.case(id_row, col).candidats & candidats:
+                    found = True
+                    self.case(id_row, col).candidats -= candidats
+            if found:
+                self.profil[NAKED[k]] += 1
+        return found
+
+
+    def naked_subset_by_col(self, id_col, k):
+        found = False
+        subset = {(row, id_col) for row in range(SIZE) if 1 < len(self.case(row, id_col).candidats) <= k}
+        ok, coords, candidats = self.inclusions(subset, k)
+        if ok:
+            for row in {r for r in range(SIZE) if self.case(r, id_col).empty() and (r, id_col) not in coords}:
+                if self.case(row, id_col).candidats & candidats:
+                    found = True
+                    self.case(row, id_col).candidats -= candidats
+            if found:
+                self.profil[NAKED[k]] += 1
+        return found
+
+
+    def naked_subset_by_block(self, i_block, j_block, k):
+        found = False
+        subset = {(row, col) for row, col  in one_block(i_block, j_block) if 1 < len(self.case(row, col).candidats) <= k}
+        ok, coords, candidats = self.inclusions(subset, k)
+        if ok:
+            for row, col in {(r, c) for r, c in one_block(i_block, j_block) if self.case(r, c).empty() and (r, c) not in coords}:
+                if self.case(row, col).candidats & candidats:
+                    found = True
+                    self.case(row, col).candidats -= candidats
+            if found:
+                self.profil[NAKED[k]] += 1
+        return found
+
+
+
+    def naked_pair(self):
+        """
+        Recherche de pair cachés 
+        """
+        found = False
+        for id_row in range(SIZE):
+            found = self.naked_subset_by_row(id_row, 2) or found
+        for id_col in range(SIZE):
+            found = self.naked_subset_by_col(id_col, 2) or found 
+        for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
+            found = self.naked_subset_by_block(i_carre, j_carre, 2) or found
+        return found
+
+
+    def naked_triple(self):
+        """
+        Recherche de triples cachés 
+        """
+        found = False
+        for id_row in range(SIZE):
+            found = self.naked_subset_by_row(id_row, 3) or found
+        for id_col in range(SIZE):
+            found = self.naked_subset_by_col(id_col, 3) or found 
+        for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
+            found = self.naked_subset_by_block(i_carre, j_carre, 3) or found
+        return found
+
+
+    def naked_quadruple(self):
+        """
+        Recherche de quadruples nus 
+        """
+        found = False
+        for id_row in range(SIZE):
+            found = self.naked_subset_by_row(id_row, 4) or found
+        for id_col in range(SIZE):
+            found = self.naked_subset_by_col(id_col, 4) or found 
+        for i_carre, j_carre in {(i,j) for i in range(MODULO) for j in range(MODULO)}:
+            found = self.naked_subset_by_block(i_carre, j_carre, 4) or found
+        return found
+
+
     # -- XY-WINGS --
     # Plus tard
 
@@ -521,7 +688,7 @@ class Sudoku:
         while self.nb_cases_vides() > 0 and changement:
             # La recherche de singletons
             #
-            while changement:
+            while self.nb_cases_vides() > 0 and changement:
                 changement = False
                 changement = self.naked_single() or changement
                 changement = self.hidden_single() or changement
@@ -529,11 +696,24 @@ class Sudoku:
             # Plus de singleton et grille non encore résolue,
             # on tente d'autres techniques
 
-                # Recherche d'intersections type 1
+                # Recherche d'intersections type 1 et 2
                 #
                 changement = self.locked_type_1() or changement
+                changement = self.locked_type_2() or changement
                 # print(self)
 
+            # Recherche de naked subsets
+            #
+            if not changement and self.nb_cases_vides() > 0:
+                if self.naked_pair():
+                    changement = True
+                    self.set_valeurs()
+                if self.naked_triple():
+                    changement = True
+                    self.set_valeurs()
+                if self.naked_quadruple():
+                    changement = True
+                    self.set_valeurs()
 
 
             # Recherche de hidden subsets
