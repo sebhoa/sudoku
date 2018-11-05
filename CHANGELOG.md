@@ -40,3 +40,26 @@ Dernières stats effectuées :
 
 * Sans backtrack : 38742 grilles, temps moyen : 0.008s
 * Avec backtrack : 10409 grilles, temps moyen : 0.022s
+
+## 2018.11.05
+
+* Refonte avec introduction des maisons et 3 modules .py :
+	- solver.py qui gère de récupérer les grilles à résoudre et lance l'affaire
+	- solve_sudoku.py qui met en place les stratégies de résolution
+	- struct_sudoku.py qui code la structure d'un sudoku avec les notions de sudoku (ensemble de cellules en gros), les cellules et les maisons (regroupement logiques de cellules)
+* Du travail de cohérence reste à faire
+* Mise en oeuvre des techniques xy-wing et basic-fish
+
+Dernières stats effectuées :
+
+* Sans backtrack : 48636 (99.0%), temps moyen 0.023s
+* Avec backtrack :   515 (1.0%), temps moyen 0.
+
+* naked_single   : 49077 utilisations (99.8%)
+* hidden_single  : 49151 utilisations (100.0%)
+* intersections  : 24670 utilisations (50.2%)
+* hidden_subsets : 14428 utilisations (29.4%)
+* naked_subsets  :  2884 utilisations (5.9%)
+* basic_fish     : 10213 utilisations (20.8%)
+* xy-wing        :   191 utilisations (0.4%)
+
