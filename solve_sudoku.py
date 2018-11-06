@@ -155,15 +155,6 @@ class Sudoku:
         """ L'ensemble des ID des cellules vides """
         return self.sudoku.empty_ids()
 
-    def communs(self, house_type, set_cells, set_cells_2):
-        """
-        Étant donné 2 set de cell's id, et un type de house ROW ou COL
-        retourne les coordonnées communes de l'autre type
-        Ex: (1,4) et (1,7) sur la ligne 1 ont les colonnes 4 et 7 en commun
-        avec les cellules (4,4) et (4,7) de la ligne 4
-        """
-        return {self.cell(cell_id).coord(house_type) for cell_id in set_cells} &\
-                {self.cell(cell_id).coord(house_type) for cell_id in set_cells_2}
 
     def visible_cell_ids(self, cell_id):
         """ ID des cellules visibles par la cellule cell_id """
@@ -491,10 +482,6 @@ class Sudoku:
     def get_lock(self, house_type, cell_id_1, cell_id_2):
         rowcol_id_1 = self._decode(cell_id_1)[house_type]
         rowcol_id_2 = self._decode(cell_id_2)[house_type]
-        # print(f'get_lock house_type {house_type}')
-        # print(f'{self.house(house_type, rowcol_id_1).empty_ids()}')
-        # print(f'{self.house(house_type, rowcol_id_2).empty_ids()}')
-        # input()
         candidats = self.candidats(cell_id_1)
         locks_id = {(lock_id_1, lock_id_2) 
                     for lock_id_1 in self.house(house_type, rowcol_id_1).empty_ids()
@@ -502,13 +489,11 @@ class Sudoku:
                         if self._decode(lock_id_1)[1 - house_type] == self._decode(lock_id_2)[1 - house_type]
                         and lock_id_1 != cell_id_1 and lock_id_1 != cell_id_2
                         and lock_id_2 != cell_id_1 and lock_id_2 != cell_id_2} 
-        # print(f'locks_id {locks_id}')
         for lock_id_1, lock_id_2 in locks_id:
             l_locked_value = list(self.candidats(lock_id_1) & candidats)
             if len(l_locked_value) == 1:
                 c = l_locked_value[0]
                 perpendiculaire = self._decode(lock_id_1)[1 - house_type]
-                # print(f'la perpendiculaire {perpendiculaire}')
                 if len(self.house(1 - house_type, perpendiculaire).ids_for_n(c)) == 2:
                     return {lock_id_1, lock_id_2}, c
         return set(), None
@@ -517,36 +502,21 @@ class Sudoku:
 
     def w_wing(self):
         found = False
-        # bivalues = self.get_bivalues()
         for cell_id_1, cell_id_2 in self.get_bivalues():
             row_id_1, col_id_1 = self._decode(cell_id_1)
             row_id_2, col_id_2 = self._decode(cell_id_2)
             house_type = ROW
-            # print(f'house_type ds w-wing {house_type}')
-            # print(f'A locker : {self._decode(cell_id_1)} et {self._decode(cell_id_2)}')
             lock_set, lock_value = self.get_lock(house_type, cell_id_1, cell_id_2)
-            # self.debug()
-            # if lock_set:
-            #     s = {self._decode(x) for x in lock_set}
-            #     print(f'row locked by {lock_value} sur {s}')
             if not lock_set:
                 house_type = COL
                 lock_set, lock_value = self.get_lock(house_type, cell_id_1, cell_id_2)
             if lock_set:
-                # s = {self._decode(x) for x in lock_set}
-                # print(f'col locked by {lock_value} sur {s}')
                 value_to_delete = list(self.candidats(cell_id_1) - {lock_value})[0]
                 cells_to_update = self.visible_cell_ids(cell_id_1) & self.visible_cell_ids(cell_id_2)
                 for cell_id in cells_to_update:
-                    ok = self.try_remove(cell_id, value_to_delete, 'w-wing')
-                    found = ok or found
-                    # if ok:
-                    #     print(f'on efface {value_to_delete} de {self._decode(cell_id)}')
+                    found = self.try_remove(cell_id, value_to_delete, 'w-wing') or found
                 if found:
                     return True
-            # else:
-            #     print('not found')
-            # input()
         return False
     
 
@@ -645,11 +615,6 @@ class Sudoku:
         self.solved = self.solve_by_backtracking()
         self.temps = time.time() - self.temps
 
-        # for cell in self.sudoku.cells:
-        #     print(cell.candidats)
-        # input()
-        # self.debug()
-        # self.analyse() 
 
 
     # --
