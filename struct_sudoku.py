@@ -202,6 +202,8 @@ class Sudoku:
 
     # -- DELIVRER LES INFORMATIONS --
 
+    def empty_ids(self):
+        return {cell.id for cell in self.empty_cells}
     
     def house(self, house_type, house_id):
         return self.houses[house_type][house_id]

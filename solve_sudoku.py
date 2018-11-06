@@ -26,7 +26,8 @@ TECHNIQUES = ['naked_single', 'hidden_single',
             'hidden_subsets',
             'naked_subsets',
             'basic_fish', 
-            'xy-wing',]
+            'xy-wing',
+            'w-wing',]
 
 # Pour dessiner les bordures de la grille
 #
@@ -83,6 +84,9 @@ class Sudoku:
 
     def _code(self, row, col):
         return row * SIZE + col
+
+    def _decode(self, cell_id):
+        return cell_id // SIZE, cell_id % SIZE
 
     # -- Pour debugguer
 
@@ -374,33 +378,63 @@ class Sudoku:
     
     # -- BASIC FISH --
 
+    def k_row_cols(self, house_type, k):
+        d_cells_ids = {}
+        for n in NUMBERS:
+            d_cells_ids[n] = [set() for _ in range(SIZE)]
+            for coord_id in range(SIZE):
+                house = self.house(house_type, coord_id)
+                cells_ids = house.ids_for_n(n)
+                if 1 < len(cells_ids) <= k:
+                    d_cells_ids[n][coord_id] = {self._decode(cell_id)[1 - house_type] for cell_id in cells_ids}
+        return d_cells_ids
+
+
+    def k_fusion(self, l_cells_ids, k):
+        for index, cols in enumerate(l_cells_ids):
+            set_rows = {index}
+            set_cols = cols
+            for index2, cols2 in enumerate(l_cells_ids):
+                if index2 != index and set_cols & cols2:
+                    union = set_cols | cols2
+                    if len(union) <= k:
+                        set_cols = union
+                        set_rows.add(index2)
+                    if len(set_cols) == k and len(set_rows) == k:
+                        return set_rows, set_cols    
+        return set(), set()    
+
+
+
     def basic_fish(self, k):
         found = False
         for house_type in [ROW, COL]:
-            for house_id in range(SIZE):
-                house = self.house(house_type, house_id)
-                for n in house.candidats():
-                    set_cells = house.ids_for_n(n)
-                    if len(set_cells) <= k:
-                        for house_id_2 in set(range(SIZE)) - {house_id}:
-                            house_2 = self.house(house_type, house_id_2)
-                            set_cells_2 = house_2.ids_for_n(n)
-                            communs = self.communs(1 - house_type, set_cells, set_cells_2)
-                            if len(communs) == k:
-                                for other_id in communs:
-                                    cells_to_update = self.house(1 - house_type, other_id).empty_ids() - set_cells - set_cells_2
-                                    for cell_id in cells_to_update:
-                                        found = self.try_remove(cell_id, n, 'basic_fish') or found
-                        if found:
-                            return True
+            d_cells_ids = self.k_row_cols(house_type, k)
+            for n in d_cells_ids:
+                set_rows, set_cols = self.k_fusion(d_cells_ids[n], k)
+                if set_rows:
+                    if house_type == COL:
+                        set_rows, set_cols = set_cols, set_rows
+                        for col_id in set(range(SIZE)) - set_cols:
+                            for row_id in set_rows:
+                                found = self.try_remove(self._code(row_id, col_id), n, 'basic_fish') or found
+                    else:
+                        for row_id in set(range(SIZE)) - set_rows:
+                            for col_id in set_cols:
+                                found = self.try_remove(self._code(row_id, col_id), n, 'basic_fish') or found
+
+                if found:
+                    return True
         return False
 
+ 
     
     # -- XY-WINGS --
 
     def get_pivot(self):
-        return {(cell.id,)+tuple(self.candidats(cell.id)) for cell in self.empty_cells() 
-                        if len(self.candidats(cell.id)) == 2}
+        return {(cell.id,) + tuple(self.candidats(cell.id)) 
+                    for cell in self.empty_cells() 
+                    if len(self.candidats(cell.id)) == 2}
 
     def get_pincers(self, pivot, set_xy):
         # print(f'Pivot {self.cell(pivot).row},{self.cell(pivot).col} XY {set_xy}')
@@ -446,22 +480,74 @@ class Sudoku:
     # -- W-WING --
 
     def get_bivalues(self):
-        return {(cell_id_1, cell_id_2) for cell_id_1 in self.empty_cells() 
-                    for cell_id_2 in self.empty_cells() if cell_id_1 != cell_id_2 and 
+        return {(cell_id_1, cell_id_2) for cell_id_1 in self.empty_ids() 
+                    for cell_id_2 in self.empty_ids() 
+                    if self._decode(cell_id_1)[0] != self._decode(cell_id_2)[0] and 
+                    self._decode(cell_id_1)[1] != self._decode(cell_id_2)[1] and
                     self.candidats(cell_id_1) == self.candidats(cell_id_2) and
-                    len(self.candidats(cell_id_1)) == 2}
+                    len(self.candidats(cell_id_1)) == 2 
+                    }
 
-    def get_lock(self, cell_id_1, cell_id_2):
-        # IN PROGRESS
-        # for row in set(range(SIZE)) - {}
-        pass
+    def get_lock(self, house_type, cell_id_1, cell_id_2):
+        rowcol_id_1 = self._decode(cell_id_1)[house_type]
+        rowcol_id_2 = self._decode(cell_id_2)[house_type]
+        # print(f'get_lock house_type {house_type}')
+        # print(f'{self.house(house_type, rowcol_id_1).empty_ids()}')
+        # print(f'{self.house(house_type, rowcol_id_2).empty_ids()}')
+        # input()
+        candidats = self.candidats(cell_id_1)
+        locks_id = {(lock_id_1, lock_id_2) 
+                    for lock_id_1 in self.house(house_type, rowcol_id_1).empty_ids()
+                    for lock_id_2 in self.house(house_type, rowcol_id_2).empty_ids()
+                        if self._decode(lock_id_1)[1 - house_type] == self._decode(lock_id_2)[1 - house_type]
+                        and lock_id_1 != cell_id_1 and lock_id_1 != cell_id_2
+                        and lock_id_2 != cell_id_1 and lock_id_2 != cell_id_2} 
+        # print(f'locks_id {locks_id}')
+        for lock_id_1, lock_id_2 in locks_id:
+            l_locked_value = list(self.candidats(lock_id_1) & candidats)
+            if len(l_locked_value) == 1:
+                c = l_locked_value[0]
+                perpendiculaire = self._decode(lock_id_1)[1 - house_type]
+                # print(f'la perpendiculaire {perpendiculaire}')
+                if len(self.house(1 - house_type, perpendiculaire).ids_for_n(c)) == 2:
+                    return {lock_id_1, lock_id_2}, c
+        return set(), None
+
 
 
     def w_wing(self):
-        bivalues = get_bivalues()
+        found = False
+        # bivalues = self.get_bivalues()
         for cell_id_1, cell_id_2 in self.get_bivalues():
-            lock_cell, lock_value = self.get_lock(cell_id_1, cell_id_2)
-    
+            row_id_1, col_id_1 = self._decode(cell_id_1)
+            row_id_2, col_id_2 = self._decode(cell_id_2)
+            house_type = ROW
+            # print(f'house_type ds w-wing {house_type}')
+            # print(f'A locker : {self._decode(cell_id_1)} et {self._decode(cell_id_2)}')
+            lock_set, lock_value = self.get_lock(house_type, cell_id_1, cell_id_2)
+            # self.debug()
+            # if lock_set:
+            #     s = {self._decode(x) for x in lock_set}
+            #     print(f'row locked by {lock_value} sur {s}')
+            if not lock_set:
+                house_type = COL
+                lock_set, lock_value = self.get_lock(house_type, cell_id_1, cell_id_2)
+            if lock_set:
+                # s = {self._decode(x) for x in lock_set}
+                # print(f'col locked by {lock_value} sur {s}')
+                value_to_delete = list(self.candidats(cell_id_1) - {lock_value})[0]
+                cells_to_update = self.visible_cell_ids(cell_id_1) & self.visible_cell_ids(cell_id_2)
+                for cell_id in cells_to_update:
+                    ok = self.try_remove(cell_id, value_to_delete, 'w-wing')
+                    found = ok or found
+                    # if ok:
+                    #     print(f'on efface {value_to_delete} de {self._decode(cell_id)}')
+                if found:
+                    return True
+            # else:
+            #     print('not found')
+            # input()
+        return False
     
 
     # -- MAIN SIMPLIFICATION METHOD --
@@ -480,6 +566,7 @@ class Sudoku:
         
             if not self.full() and not change:
                 change = self.intersections()
+
 
             if not self.full() and not change:
                 for k in range(2,5):
@@ -501,6 +588,9 @@ class Sudoku:
 
             if not self.full() and not change:
                 change = self.xy_wing()
+
+            if not self.full() and not change:
+                change = self.w_wing()
 
 
         if self.full():

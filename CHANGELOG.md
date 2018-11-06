@@ -63,3 +63,22 @@ Dernières stats effectuées :
 * basic_fish     : 10213 utilisations (20.8%)
 * xy-wing        :   191 utilisations (0.4%)
 
+## 2018.11.06
+
+* Correction bugs dans basic-fish (qui explique les stats fausses)
+* Introduction de w-wing
+
+Dernières stats effectuées :
+
+* Sans backtrack : 42796 (87.1%), temps moyen 0.021s
+* Avec backtrack :  6355 (12.9%), temps moyen 0.112s
+
+naked_single   : 46916 utilisations (95.5%)
+hidden_single  : 49147 utilisations (100.0%)
+intersections  : 24441 utilisations (49.7%)
+hidden_subsets : 13938 utilisations (28.4%)
+naked_subsets  :  2125 utilisations (4.3%)
+basic_fish     :  9938 utilisations (20.2%)
+xy-wing        :  1674 utilisations (3.4%)
+w-wing         :  2608 utilisations (5.3%)
+

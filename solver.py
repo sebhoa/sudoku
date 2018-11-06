@@ -97,8 +97,12 @@ class Solver:
             filtername = ''
 
         with open(main_filename, 'r') as all_sudokus:
-            for one_sudoku in all_sudokus:
-                id_sudoku, data_sudoku = one_sudoku.split()
+            for index, one_sudoku in enumerate(all_sudokus):
+                infos = one_sudoku.split()
+                if len(infos) == 2:
+                    id_sudoku, data_sudoku = infos
+                else:
+                    id_sudoku, data_sudoku = index, infos[0]
                 self.datas[id_sudoku] = data_sudoku
 
         if filtername:
